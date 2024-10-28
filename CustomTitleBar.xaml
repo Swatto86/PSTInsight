@@ -1,0 +1,94 @@
+﻿<UserControl x:Class="PSTInsight.CustomTitleBar"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             Height="40"
+             Background="Transparent">
+    <UserControl.Resources>
+        <!-- Custom Button Style for Title Bar Buttons -->
+        <Style x:Key="TitleBarButtonStyle" TargetType="Button">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="Foreground" Value="#CCCCCC" />
+            <Setter Property="FontSize" Value="14" />
+            <Setter Property="FontWeight" Value="Bold" />
+            <Setter Property="Width" Value="30" />
+            <Setter Property="Height" Value="30" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="border"
+                                Background="{TemplateBinding Background}"
+                                BorderThickness="0"
+                                CornerRadius="4">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Background" Value="{DynamicResource AccentBrush}" />
+                                <Setter Property="Foreground" Value="White" />
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter Property="Background" Value="{DynamicResource AccentBrush}" />
+                                <Setter Property="Opacity" Value="0.8" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Close Button Style -->
+        <Style x:Key="CloseButtonStyle" TargetType="Button" BasedOn="{StaticResource TitleBarButtonStyle}">
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="#E81123" />
+                    <Setter Property="Foreground" Value="White" />
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+    </UserControl.Resources>
+
+    <Grid Margin="0,5,0,0">
+        <!-- This margin brings the entire title bar down -->
+        <Border x:Name="BackgroundBorder" Background="{DynamicResource ControlBackgroundBrush}"
+                CornerRadius="8" Margin="5,0,5,5">
+            <Border.Effect>
+                <DropShadowEffect ShadowDepth="0" BlurRadius="10" Opacity="0.5" />
+            </Border.Effect>
+        </Border>
+        <Border Background="Transparent"
+                CornerRadius="8" Margin="5,0,5,5"
+                MouseDown="TitleBar_MouseDown">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="12,0,0,0">
+                    <Image Source="pack://application:,,,/Icons/email_icon.ico"
+                           Width="16" Height="16" Margin="0,0,8,0" VerticalAlignment="Center" />
+                    <TextBlock Text="{Binding Title, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                               VerticalAlignment="Center"
+                               Foreground="{DynamicResource PrimaryTextBrush}"
+                               FontSize="12" FontWeight="Bold" />
+                </StackPanel>
+                <StackPanel Orientation="Horizontal" Grid.Column="1" VerticalAlignment="Center"
+                            Margin="0,0,8,0">
+                    <Button x:Name="MinimizeButton"
+                            Content="-"
+                            Click="MinimizeButton_Click"
+                            Style="{StaticResource TitleBarButtonStyle}"
+                            Margin="0,0,4,0" />
+                    <Button x:Name="MaximizeButton"
+                            Content="□"
+                            Click="MaximizeButton_Click"
+                            Style="{StaticResource TitleBarButtonStyle}"
+                            Margin="0,0,4,0" />
+                    <Button x:Name="CloseButton"
+                            Content="✕"
+                            Click="CloseButton_Click"
+                            Style="{StaticResource CloseButtonStyle}" />
+                </StackPanel>
+            </Grid>
+        </Border>
+    </Grid>
+</UserControl>
