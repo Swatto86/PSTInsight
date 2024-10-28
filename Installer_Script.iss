@@ -2,7 +2,7 @@
 ; SEE THE DOCUMENTATION FOR DETAILS ON CREATING INNO SETUP SCRIPT FILES!
 
 #define MyAppName "PSTInsight"
-#define MyAppVersion "2.0"
+#define MyAppVersion "2.1"
 #define MyAppPublisher "SwatCorp"
 #define MyAppURL "https://swatto.co.uk/"
 #define MyAppExeName "PSTInsight.exe"
