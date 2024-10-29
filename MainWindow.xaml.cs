@@ -78,6 +78,8 @@ namespace PSTInsight
         private Visibility _progressVisibility = Visibility.Collapsed;
         private GridViewColumnHeader _lastHeaderClicked = null;
         private ListSortDirection _lastDirection = ListSortDirection.Ascending;
+        private int _exportCount;
+        private Visibility _exportCountVisibility = Visibility.Collapsed;
 
         /// <summary>
         /// Gets or sets the current progress value.
@@ -159,6 +161,33 @@ namespace PSTInsight
         }
 
         public event PropertyChangedEventHandler PropertyChanged;
+
+        public int ExportCount
+        {
+            get => _exportCount;
+            set
+            {
+                if (_exportCount != value)
+                {
+                    _exportCount = value;
+                    OnPropertyChanged(nameof(ExportCount));
+                    ExportCountVisibility = value > 0 ? Visibility.Visible : Visibility.Collapsed;
+                }
+            }
+        }
+
+        public Visibility ExportCountVisibility
+        {
+            get => _exportCountVisibility;
+            set
+            {
+                if (_exportCountVisibility != value)
+                {
+                    _exportCountVisibility = value;
+                    OnPropertyChanged(nameof(ExportCountVisibility));
+                }
+            }
+        }
 
         #endregion
 
@@ -516,7 +545,9 @@ namespace PSTInsight
                     ProgressText = $"Loading emails... {value}%";
                 });
 
+                DetachSelectionHandlers();
                 _allEmails = await _pstService.GetEmailsFromFolderAsync(selectedFolder, progress);
+                AttachSelectionHandlers();
 
                 if (_emails == null)
                 {
@@ -536,6 +567,8 @@ namespace PSTInsight
 
                 ApplyFilter();
                 lvEmails.Items.Refresh();
+
+                UpdateExportCount();
             }
             catch (Exception ex)
             {
@@ -846,7 +879,11 @@ namespace PSTInsight
         private void SelectAllItems()
         {
             lvEmails.SelectAll();
-            UpdateSelectedItemsForExport();
+            foreach (EmailItem item in _emails)
+            {
+                item.IsSelectedForExport = true;
+            }
+            UpdateExportCount();
         }
 
         /// <summary>
@@ -859,6 +896,7 @@ namespace PSTInsight
             {
                 item.IsSelectedForExport = false;
             }
+            UpdateExportCount();
         }
 
         /// <summary>
@@ -1020,5 +1058,37 @@ namespace PSTInsight
         }
 
         #endregion
+
+        private void UpdateExportCount()
+        {
+            ExportCount = _allEmails?.Count(e => e.IsSelectedForExport) ?? 0;
+        }
+
+        private void AttachSelectionHandlers()
+        {
+            if (_allEmails != null)
+            {
+                foreach (var email in _allEmails)
+                {
+                    email.SelectionChanged += Email_SelectionChanged;
+                }
+            }
+        }
+
+        private void DetachSelectionHandlers()
+        {
+            if (_allEmails != null)
+            {
+                foreach (var email in _allEmails)
+                {
+                    email.SelectionChanged -= Email_SelectionChanged;
+                }
+            }
+        }
+
+        private void Email_SelectionChanged(object sender, EventArgs e)
+        {
+            UpdateExportCount();
+        }
     }
 }

@@ -123,6 +123,7 @@ namespace PSTInsight
                 {
                     _isSelectedForExport = value;
                     OnPropertyChanged();
+                    SelectionChanged?.Invoke(this, EventArgs.Empty);
                 }
             }
         }
@@ -134,6 +135,8 @@ namespace PSTInsight
         public MessageView MessageView { get; }
 
         public ICommand SaveAttachmentCommand { get; private set; }
+
+        public event EventHandler SelectionChanged;
 
         #endregion
 

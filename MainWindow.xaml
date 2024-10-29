@@ -31,8 +31,15 @@
                       SelectionChanged="CmbPstFiles_SelectionChanged" />
             <Button x:Name="btnRemovePst" Content="Remove PST" Click="BtnRemovePst_Click" Grid.Column="2"
                     Margin="0,0,10,0" />
-            <Button x:Name="btnExport" Content="Export Selected" Click="BtnExport_Click" Grid.Column="3"
-                    Margin="0,0,10,0" />
+            <StackPanel Grid.Column="3" Orientation="Horizontal" Margin="0,0,10,0">
+                <Button x:Name="btnExport" Content="Export Selected" Click="BtnExport_Click" />
+                <TextBlock x:Name="txtExportCount" 
+                           Margin="5,0,0,0" 
+                           VerticalAlignment="Center"
+                           Visibility="{Binding ExportCountVisibility}">
+                    <Run Text="(" /><Run Text="{Binding ExportCount, Mode=OneWay}" /><Run Text=" selected)" />
+                </TextBlock>
+            </StackPanel>
 
             <!-- Progress indicator -->
             <StackPanel Grid.Column="4" Orientation="Horizontal" Visibility="{Binding ProgressVisibility}">
