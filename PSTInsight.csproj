@@ -151,7 +151,6 @@
     <Compile Include="CustomTitleBar.xaml.cs">
       <DependentUpon>CustomTitleBar.xaml</DependentUpon>
     </Compile>
-    <Compile Include="MessageView.cs" />
     <Compile Include="PstService.cs" />
     <Compile Include="WatermarkService.cs" />
     <Page Include="CustomTitleBar.xaml">
@@ -170,7 +169,6 @@
       <DependentUpon>App.xaml</DependentUpon>
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="EmailItem.cs" />
     <Compile Include="MainWindow.xaml.cs">
       <DependentUpon>MainWindow.xaml</DependentUpon>
       <SubType>Code</SubType>

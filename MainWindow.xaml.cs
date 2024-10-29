@@ -71,8 +71,8 @@ namespace PSTInsight
 
         private readonly PstService _pstService;
         private XstFile _currentPstFile;
-        private ObservableCollection<EmailItem> _emails;
-        private List<EmailItem> _allEmails;
+        private ObservableCollection<XstMessage> _emails;
+        private List<XstMessage> _allEmails;
         private int _progressValue;
         private string _progressText;
         private Visibility _progressVisibility = Visibility.Collapsed;
@@ -150,14 +150,10 @@ namespace PSTInsight
         /// <summary>
         /// Gets or sets the collection of email items to display.
         /// </summary>
-        public ObservableCollection<EmailItem> Emails
+        public ObservableCollection<XstMessage> Emails
         {
-            get => _emails;
-            set
-            {
-                _emails = value;
-                OnPropertyChanged(nameof(Emails));
-            }
+            get { return _emails; }
+            set { _emails = value; OnPropertyChanged(nameof(Emails)); }
         }
 
         /// <summary>
@@ -220,7 +216,7 @@ namespace PSTInsight
         {
             InitializeComponent();
             _pstService = new PstService();
-            _emails = new ObservableCollection<EmailItem>();
+            _emails = new ObservableCollection<XstMessage>();
             DataContext = this;
             InitializeAsync();
             SaveAttachmentCommand = new AsyncRelayCommand<AttachmentItem>(SaveAttachment);
@@ -564,14 +560,14 @@ namespace PSTInsight
 
                 if (_emails == null)
                 {
-                    _emails = new ObservableCollection<EmailItem>();
+                    _emails = new ObservableCollection<XstMessage>();
                 }
                 else
                 {
                     _emails.Clear();
                 }
 
-                foreach (EmailItem email in _allEmails)
+                foreach (XstMessage email in _allEmails)
                 {
                     _emails.Add(email);
                 }
@@ -595,6 +591,7 @@ namespace PSTInsight
             }
         }
 
+
         #endregion
 
         #region Email Display and Interaction
@@ -604,16 +601,17 @@ namespace PSTInsight
         /// </summary>
         private async void LvEmails_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
-            if (lvEmails.SelectedItem is EmailItem selectedEmail)
+            if (lvEmails.SelectedItem is XstMessage selectedEmail)
             {
                 Debug.WriteLine($"Email selected: {selectedEmail.Subject}");
-                txtSubject.Text = selectedEmail.MessageView.Subject;
-                txtFrom.Text = selectedEmail.MessageView.SenderEmail;
-                txtDate.Text = selectedEmail.MessageView.DisplayDate;
+                txtSubject.Text = selectedEmail.Subject;
+                txtFrom.Text = selectedEmail.SenderEmailAddress;
+                txtDate.Text = selectedEmail.DeliveryTime.ToString();
 
                 try
                 {
-                    string htmlContent = await _pstService.GetEmailHtmlContentAsync(selectedEmail);
+                    // Use the GetBodyHtml method to get the HTML content of the email
+                    string htmlContent = selectedEmail.GetBodyHtml();
                     Debug.WriteLine($"HTML Content length: {htmlContent?.Length ?? 0}");
                     await webView.EnsureCoreWebView2Async();
                     webView.NavigateToString(htmlContent);
@@ -640,6 +638,9 @@ namespace PSTInsight
                 ClearEmailDisplay();
             }
         }
+
+
+
 
         /// <summary>
         /// Clears the email display area.
