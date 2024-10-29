@@ -61,21 +61,58 @@ namespace PSTInsight
 
         #region Public Properties
 
+        /// <summary>
+        /// Gets or sets the subject of the email.
+        /// </summary>
         public string Subject { get; set; }
+
+        /// <summary>
+        /// Gets or sets the sender's name.
+        /// </summary>
         public string FromName { get; set; }
+
+        /// <summary>
+        /// Gets or sets the sender's email address.
+        /// </summary>
         public string FromAddress { get; set; }
 
         /// <summary>
         /// Gets the display string for the sender, combining name and address.
         /// </summary>
         public string FromDisplay => string.IsNullOrWhiteSpace(FromAddress) ? FromName : $"{FromName} <{FromAddress}>";
-
+        /// <summary>
+        /// Gets or sets the recipient's name.
+        /// </summary>
         public string ToName { get; set; }
+
+        /// <summary>
+        /// Gets or sets the recipient's email address.
+        /// </summary>
         public string ToAddress { get; set; }
+
+        /// <summary>
+        /// Gets or sets the recipient's name.
+        /// </summary>
         public string CcName { get; set; }
+
+        /// <summary>
+        /// Gets or sets the recipient's email address.
+        /// </summary>
         public string CcAddress { get; set; }
+
+        /// <summary>
+        /// Gets or sets the date of the email.
+        /// </summary>
         public DateTime Date { get; set; }
+
+        /// <summary>
+        /// Gets or sets the body of the email.
+        /// </summary>
         public string Body { get; set; }
+
+        /// <summary>
+        /// Gets or sets the body of the email as HTML.
+        /// </summary>
         public string BodyHtml { get; set; }
 
         /// <summary>
@@ -128,12 +165,29 @@ namespace PSTInsight
             }
         }
 
+        /// <summary>
+        /// Gets or sets the date of the email as a string.
+        /// </summary>
         public string DateValue { get; set; }
+
+        /// <summary>
+        /// Gets or sets the date of the email as a formatted string.
+        /// </summary>
         public string DateView { get; set; }
+
+        /// <summary>
+        /// Gets or sets the date of the email as a formatted string.
+        /// </summary>
         public string DateString { get; set; }
 
+        /// <summary>
+        /// Gets the MessageView object for this email.
+        /// </summary>
         public MessageView MessageView { get; }
 
+        /// <summary>
+        /// Gets the command for saving attachments.
+        /// </summary>
         public ICommand SaveAttachmentCommand { get; private set; }
 
         public event EventHandler SelectionChanged;
@@ -142,6 +196,9 @@ namespace PSTInsight
 
         #region INotifyPropertyChanged Implementation
 
+        /// <summary>
+        /// Event handler for property changes.
+        /// </summary>
         public event PropertyChangedEventHandler PropertyChanged;
 
         /// <summary>
@@ -380,8 +437,14 @@ namespace PSTInsight
             }
         }
 
+        /// <summary>
+        /// Gets or sets the content ID of the attachment.
+        /// </summary>
         public string ContentId { get; set; }
 
+        /// <summary>
+        /// Gets the original XstAttachment object.
+        /// </summary>  
         public XstAttachment OriginalAttachment { get; }
 
         #endregion
@@ -405,6 +468,9 @@ namespace PSTInsight
 
         #region INotifyPropertyChanged Implementation
 
+        /// <summary>
+        /// Event handler for property changes.
+        /// </summary>
         public event PropertyChangedEventHandler PropertyChanged;
 
         /// <summary>

@@ -160,6 +160,9 @@ namespace PSTInsight
             }
         }
 
+        /// <summary>
+        /// Event handler for property changes.
+        /// </summary>
         public event PropertyChangedEventHandler PropertyChanged;
 
         public int ExportCount
@@ -176,6 +179,9 @@ namespace PSTInsight
             }
         }
 
+        /// <summary>
+        /// Gets or sets the visibility of the export count text block.
+        /// </summary>
         public Visibility ExportCountVisibility
         {
             get => _exportCountVisibility;
@@ -193,7 +199,14 @@ namespace PSTInsight
 
         #region Commands
 
+        /// <summary>
+        /// Command for toggling export of selected emails.
+        /// </summary>
         public ICommand ToggleExportCommand { get; private set; }
+
+        /// <summary>
+        /// Command for saving attachments.
+        /// </summary>
         public ICommand SaveAttachmentCommand { get; private set; }
 
         #endregion
@@ -715,8 +728,10 @@ namespace PSTInsight
         #region Email Export and Attachment Handling
 
         /// <summary>
-        /// Handles the click event of the Export button.
+        /// Handles the click event of the export button.
         /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
         private async void BtnExport_Click(object sender, RoutedEventArgs e)
 {
     try
@@ -934,6 +949,11 @@ namespace PSTInsight
 
         #region Event Handlers
 
+        /// <summary>
+        /// Handles the loaded event of the main window.
+        /// </summary>
+        /// <param name="sender">The sender object.</param>
+        /// <param name="e">The event arguments.</param>
         private void MainWindow_Loaded(object sender, RoutedEventArgs e)
         {
             AdjustColumnWidths();
@@ -1059,11 +1079,17 @@ namespace PSTInsight
 
         #endregion
 
+        /// <summary>
+        /// Updates the export count based on the selected emails.
+        /// </summary>
         private void UpdateExportCount()
         {
             ExportCount = _allEmails?.Count(e => e.IsSelectedForExport) ?? 0;
         }
 
+        /// <summary>
+        /// Attaches the selection changed event handlers to the email items.
+        /// </summary>
         private void AttachSelectionHandlers()
         {
             if (_allEmails != null)
@@ -1075,6 +1101,9 @@ namespace PSTInsight
             }
         }
 
+        /// <summary>
+        /// Detaches the selection changed event handlers from the email items.
+        /// </summary>
         private void DetachSelectionHandlers()
         {
             if (_allEmails != null)
@@ -1086,6 +1115,11 @@ namespace PSTInsight
             }
         }
 
+        /// <summary>
+        /// Handles the selection changed event of the email items.
+        /// </summary>
+        /// <param name="sender">The sender object.</param>
+        /// <param name="e">The event arguments.</param>
         private void Email_SelectionChanged(object sender, EventArgs e)
         {
             UpdateExportCount();
