@@ -172,8 +172,23 @@ namespace PSTInsight
 
                         using (Email msg = new Email(sender, representing, email.Subject))
                         {
-                            msg.BodyText = email.Body;
-                            msg.BodyHtml = email.GetBodyAsHtmlString();
+                            // Set the plain text body if available
+                            if (!string.IsNullOrEmpty(email.Body))
+                                msg.BodyText = email.Body;
+
+                            // Set the HTML body if available
+                            if (!string.IsNullOrEmpty(email.BodyHtml))
+                            {
+                                msg.BodyHtml = email.BodyHtml;
+                                // Set editor format to HTML to ensure proper rendering
+                                msg.MessageEditorFormat = MessageEditorFormat.EDITOR_FORMAT_HTML;
+                            }
+                            else if (!string.IsNullOrEmpty(email.GetBodyAsHtmlString()))
+                            {
+                                msg.BodyHtml = email.GetBodyAsHtmlString();
+                                msg.MessageEditorFormat = MessageEditorFormat.EDITOR_FORMAT_HTML;
+                            }
+
                             msg.SentOn = email.Date;
 
                             AddRecipients(email.ToName, email.ToAddress, (name, address) => msg.Recipients.AddTo(name, address));

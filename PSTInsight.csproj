@@ -201,6 +201,12 @@
     </None>
   </ItemGroup>
   <ItemGroup>
+    <!-- Ensure WebView2Loader.dll is copied to the output directory -->
+    <Content Include="packages\Microsoft.Web.WebView2.1.0.2895-prerelease\runtimes\win-x64\native\WebView2Loader.dll">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+  <ItemGroup>
     <None Include="App.config" />
   </ItemGroup>
   <ItemGroup>
