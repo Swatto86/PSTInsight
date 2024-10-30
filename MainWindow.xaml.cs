@@ -944,20 +944,48 @@ namespace PSTInsight
             ExportCount = _allEmails?.Count(e => e.GetIsSelectedForExport()) ?? 0;
         }
 
+        private string GetPstFilesPath()
+        {
+            // Get the AppData Roaming path and create PSTInsight directory if it doesn't exist
+            string appDataPath = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+                "PSTInsight"
+            );
+            Directory.CreateDirectory(appDataPath);
+            return Path.Combine(appDataPath, "pst_paths.txt");
+        }
+
         private void SavePstFilePaths()
         {
-            List<string> paths = cmbPstFiles.Items.Cast<string>().ToList();
-            File.WriteAllLines("pstfiles.txt", paths);
+            try
+            {
+                List<string> paths = cmbPstFiles.Items.Cast<string>().ToList();
+                File.WriteAllLines(GetPstFilesPath(), paths);
+            }
+            catch (Exception ex)
+            {
+                _ = MessageBox.Show($"Error saving PST file paths: {ex.Message}", "Error",
+                    MessageBoxButton.OK, MessageBoxImage.Error);
+            }
         }
 
         private void LoadSavedPstFiles()
         {
-            if (File.Exists("pstfiles.txt"))
+            string pstFilesPath = GetPstFilesPath();
+            if (File.Exists(pstFilesPath))
             {
-                string[] paths = File.ReadAllLines("pstfiles.txt");
-                foreach (string path in paths.Where(File.Exists))
+                try
                 {
-                    _ = LoadPstFileAsync(path);
+                    string[] paths = File.ReadAllLines(pstFilesPath);
+                    foreach (string path in paths.Where(File.Exists))
+                    {
+                        _ = LoadPstFileAsync(path);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _ = MessageBox.Show($"Error loading saved PST file paths: {ex.Message}", "Error",
+                        MessageBoxButton.OK, MessageBoxImage.Error);
                 }
             }
         }
