@@ -163,6 +163,12 @@ namespace PSTInsight
                 throw new FileNotFoundException($"PST file not found: {filePath}");
             }
 
+            // Check if file is already loaded
+            if (_loadedPstFiles.ContainsKey(filePath))
+            {
+                return; // Skip if already loaded
+            }
+
             try
             {
                 SetWindowEnabled(false);
@@ -190,8 +196,19 @@ namespace PSTInsight
             }
             catch (Exception ex)
             {
-                _ = MessageBox.Show($"Error loading PST file: {ex.Message}", "Error",
-                    MessageBoxButton.OK, MessageBoxImage.Error);
+                // Remove from dictionary if loading failed
+                if (_loadedPstFiles.ContainsKey(filePath))
+                {
+                    _ = _loadedPstFiles.Remove(filePath);
+                }
+                
+                // Remove from combo box if loading failed
+                if (cmbPstFiles.Items.Contains(filePath))
+                {
+                    cmbPstFiles.Items.Remove(filePath);
+                }
+
+                throw; // Rethrow the exception to be handled by caller
             }
             finally
             {
@@ -642,9 +659,22 @@ namespace PSTInsight
                 string[] files = (string[])e.Data.GetData(DataFormats.FileDrop);
                 foreach (string file in files)
                 {
-                    if (Path.GetExtension(file).Equals(".pst", StringComparison.OrdinalIgnoreCase))
+                    try
                     {
-                        await LoadPstFileAsync(file);
+                        if (Path.GetExtension(file).Equals(".pst", StringComparison.OrdinalIgnoreCase))
+                        {
+                            // Load each dropped file sequentially and wait for completion
+                            await LoadPstFileAsync(file);
+                            
+                            // Add a small delay between loads to prevent overwhelming the system
+                            await Task.Delay(100);
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        // Log the error but continue loading other files
+                        _ = MessageBox.Show($"Error loading PST file '{file}': {ex.Message}", 
+                            "Warning", MessageBoxButton.OK, MessageBoxImage.Warning);
                     }
                 }
             }
@@ -986,23 +1016,37 @@ namespace PSTInsight
             }
         }
 
-        private void LoadSavedPstFiles()
+        private async void LoadSavedPstFiles()
         {
             string pstFilesPath = GetPstFilesPath();
             if (File.Exists(pstFilesPath))
             {
                 try
                 {
+                    // Read all paths but load them one at a time
                     string[] paths = File.ReadAllLines(pstFilesPath);
                     foreach (string path in paths.Where(File.Exists))
                     {
-                        _ = LoadPstFileAsync(path);
+                        try
+                        {
+                            // Load each PST file sequentially and wait for completion
+                            await LoadPstFileAsync(path);
+                            
+                            // Add a small delay between loads to prevent overwhelming the system
+                            await Task.Delay(100);
+                        }
+                        catch (Exception ex)
+                        {
+                            // Log the error but continue loading other files
+                            _ = MessageBox.Show($"Error loading PST file '{path}': {ex.Message}", 
+                                "Warning", MessageBoxButton.OK, MessageBoxImage.Warning);
+                        }
                     }
                 }
                 catch (Exception ex)
                 {
-                    _ = MessageBox.Show($"Error loading saved PST file paths: {ex.Message}", "Error",
-                        MessageBoxButton.OK, MessageBoxImage.Error);
+                    _ = MessageBox.Show($"Error loading saved PST file paths: {ex.Message}", 
+                        "Error", MessageBoxButton.OK, MessageBoxImage.Error);
                 }
             }
         }
