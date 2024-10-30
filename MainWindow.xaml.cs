@@ -358,15 +358,36 @@ namespace PSTInsight
                 return;
             }
 
-            txtSubject.Text = email.Subject;
-            txtFrom.Text = email.From;
-            txtDate.Text = email.Date?.ToString();
+            txtSubject.Text = email.Subject ?? string.Empty;
+            txtFrom.Text = email.From ?? string.Empty;
+            txtDate.Text = email.Date?.ToString("g") ?? string.Empty;
 
             try
             {
                 string htmlContent = email.Body?.Text;
                 if (!string.IsNullOrEmpty(htmlContent))
                 {
+                    // If content doesn't have HTML structure, wrap it
+                    if (!htmlContent.ToLower().Contains("<html"))
+                    {
+                        htmlContent = $@"<!DOCTYPE html>
+<html>
+<head>
+    <meta charset='utf-8'>
+    <style>
+        body {{ 
+            font-family: Calibri, Arial, sans-serif; 
+            font-size: 12pt; 
+            margin: 20px;
+        }}
+    </style>
+</head>
+<body>
+    {htmlContent}
+</body>
+</html>";
+                    }
+
                     webView.NavigateToString(htmlContent);
                     WebViewVisibility = Visibility.Visible;
                 }
@@ -378,7 +399,7 @@ namespace PSTInsight
             }
             catch (Exception ex)
             {
-                _ = MessageBox.Show($"Error displaying email content: {ex.Message}", "Error",
+                MessageBox.Show($"Error displaying email content: {ex.Message}", "Error",
                     MessageBoxButton.OK, MessageBoxImage.Error);
                 WebViewVisibility = Visibility.Collapsed;
             }
@@ -458,8 +479,8 @@ namespace PSTInsight
                                 var doc = new HtmlDocument();
                                 doc.LoadHtml(bodyText);
 
-                                // Remove unwanted elements
-                                var nodesToRemove = doc.DocumentNode.SelectNodes("//style|//script|//meta");
+                                // Remove unwanted elements but preserve links and paragraphs
+                                var nodesToRemove = doc.DocumentNode.SelectNodes("//style|//script|//meta|//head");
                                 if (nodesToRemove != null)
                                 {
                                     foreach (var node in nodesToRemove)
@@ -468,10 +489,32 @@ namespace PSTInsight
                                     }
                                 }
 
-                                // Replace &nbsp; with regular spaces
-                                bodyText = doc.DocumentNode.InnerHtml
+                                // Convert HTML entities to their actual characters
+                                bodyText = WebUtility.HtmlDecode(doc.DocumentNode.InnerHtml);
+
+                                // Clean up common HTML entities that might not be caught
+                                bodyText = bodyText
                                     .Replace("&nbsp;", " ")
-                                    .Replace("&#160;", " ");
+                                    .Replace("&#160;", " ")
+                                    .Replace("&#x2019;", "'")
+                                    .Replace("&#x00A9;", "©")
+                                    .Replace("&#8217;", "'")
+                                    .Replace("&#169;", "©");
+
+                                // Preserve paragraph spacing
+                                bodyText = System.Text.RegularExpressions.Regex.Replace(
+                                    bodyText,
+                                    @"</p>\s*<p>",
+                                    "</p>\n<p>",
+                                    System.Text.RegularExpressions.RegexOptions.IgnoreCase
+                                );
+
+                                // Clean up excessive whitespace while preserving paragraph structure
+                                bodyText = System.Text.RegularExpressions.Regex.Replace(
+                                    bodyText,
+                                    @"\s{2,}",
+                                    " "
+                                );
 
                                 // Set both HTML and plain text versions
                                 msg.BodyHtml = CleanHtml(bodyText);
@@ -1199,24 +1242,59 @@ namespace PSTInsight
         {
             if (string.IsNullOrEmpty(html)) return string.Empty;
 
-            // Ensure proper HTML structure
-            if (!html.ToLower().Contains("<html"))
-            {
-                html = $@"<!DOCTYPE HTML PUBLIC ""-//W3C//DTD HTML 4.0 Transitional//EN"">
+            var doc = new HtmlDocument();
+            doc.LoadHtml(html);
+
+            // Convert HTML entities
+            html = WebUtility.HtmlDecode(doc.DocumentNode.InnerHtml);
+
+            // Clean up common formatting issues
+            html = html
+                .Replace("&nbsp;", " ")
+                .Replace("\r\n", "\n")
+                .Replace("\n\n\n", "\n\n");  // Remove excessive line breaks
+
+            // Ensure paragraphs have proper spacing
+            html = System.Text.RegularExpressions.Regex.Replace(
+                html,
+                @"(<p[^>]*>)\s*",
+                "$1",
+                System.Text.RegularExpressions.RegexOptions.IgnoreCase
+            );
+
+            // Add basic HTML structure with improved formatting
+            return $@"<!DOCTYPE html>
 <html>
 <head>
-<meta http-equiv=""Content-Type"" content=""text/html; charset=utf-8"">
-<style>
-body {{ font-family: Calibri, Arial, Helvetica, sans-serif; font-size: 11pt; }}
-</style>
+    <meta charset='utf-8'>
+    <style>
+        body {{ 
+            font-family: Calibri, Arial, sans-serif; 
+            font-size: 12pt; 
+            line-height: 1.6; 
+            margin: 20px;
+            color: #333;
+        }}
+        p {{ margin: 0 0 1em 0; }}
+        pre {{ 
+            white-space: pre-wrap; 
+            font-family: inherit;
+            margin: 0;
+        }}
+        blockquote {{
+            margin: 1em 0;
+            padding-left: 1em;
+            border-left: 3px solid #ccc;
+            color: #666;
+        }}
+    </style>
 </head>
 <body>
-{html}
+    <div class='email-body'>
+        {html}
+    </div>
 </body>
 </html>";
-            }
-
-            return html;
         }
 
         private string HtmlToPlainText(string html)
@@ -1225,6 +1303,26 @@ body {{ font-family: Calibri, Arial, Helvetica, sans-serif; font-size: 11pt; }}
 
             var doc = new HtmlDocument();
             doc.LoadHtml(html);
+
+            // Handle links specially - add URL in parentheses after link text
+            var linkNodes = doc.DocumentNode.SelectNodes("//a[@href]");
+            if (linkNodes != null)
+            {
+                foreach (var link in linkNodes)
+                {
+                    string href = link.GetAttributeValue("href", string.Empty);
+                    string text = link.InnerText.Trim();
+                    
+                    // Only add the URL if it's different from the text
+                    if (!string.IsNullOrEmpty(href) && !href.Equals(text, StringComparison.OrdinalIgnoreCase))
+                    {
+                        link.ParentNode.ReplaceChild(
+                            doc.CreateTextNode($"{text} ({href})"),
+                            link
+                        );
+                    }
+                }
+            }
 
             // Replace <br> and <p> with newlines
             var brNodes = doc.DocumentNode.SelectNodes("//br");
@@ -1245,11 +1343,14 @@ body {{ font-family: Calibri, Arial, Helvetica, sans-serif; font-size: 11pt; }}
                 }
             }
 
-            // Get plain text and clean up extra whitespace
+            // Get plain text and clean up whitespace
             string plainText = doc.DocumentNode.InnerText;
-            plainText = System.Text.RegularExpressions.Regex.Replace(plainText, @"\s+", " ").Trim();
             
-            return plainText;
+            // Clean up excessive whitespace while preserving paragraph structure
+            plainText = System.Text.RegularExpressions.Regex.Replace(plainText, @"\n{3,}", "\n\n");
+            plainText = System.Text.RegularExpressions.Regex.Replace(plainText, @"\s+", " ");
+            
+            return plainText.Trim();
         }
 
         private string ConvertPlainTextToHtml(string plainText)
