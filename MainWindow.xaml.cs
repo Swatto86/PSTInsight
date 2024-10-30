@@ -18,6 +18,8 @@ using Orientation = System.Windows.Controls.Orientation;
 using SaveFileDialog = Microsoft.Win32.SaveFileDialog;
 using Task = System.Threading.Tasks.Task;
 using System.Globalization;
+using System.Text;
+using HtmlAgilityPack;
 
 namespace PSTInsight
 {
@@ -392,7 +394,6 @@ namespace PSTInsight
 
         private async Task ExportSelectedEmailsAsync(string outputPath)
         {
-            // Get selected emails
             List<XstMessage> selectedEmails = _allEmails.Where(e => e.GetIsSelectedForExport()).ToList();
             if (selectedEmails.Count == 0)
             {
@@ -403,7 +404,6 @@ namespace PSTInsight
 
             try
             {
-                // Setup progress tracking
                 SetWindowEnabled(false);
                 ProgressVisibility = Visibility.Visible;
                 ProgressValue = 0;
@@ -413,98 +413,115 @@ namespace PSTInsight
                 int success = 0;
                 List<string> failures = new List<string>();
 
-                // Process each email
                 for (int i = 0; i < total; i++)
                 {
                     XstMessage email = selectedEmails[i];
                     try
                     {
-                        // Generate unique filename
                         string baseFileName = GetSafeFileName(email.Subject);
                         string filePath = GetUniqueFilePath(outputPath, baseFileName, ".msg");
 
-                        // Export email asynchronously
-                        await Task.Run(() =>
+                        // Parse sender information
+                        (string fromName, string fromAddress) = ParseEmailAddress(email.From ?? string.Empty);
+
+                        using (var msg = new Email(new Sender(fromName, fromAddress), email.Subject ?? string.Empty))
                         {
-                            // Parse sender information
-                            (string fromName, string fromAddress) = ParseEmailAddress(email.From ?? string.Empty);
-
-                            // Create MSG file
-                            using (Email msg = new Email(new Sender(fromName, fromAddress), email.Subject ?? string.Empty))
+                            // Set email properties
+                            msg.SentOn = email.Date ?? DateTime.Now;
+                            msg.Subject = email.Subject ?? string.Empty;
+                            
+                            // Handle recipients
+                            if (!string.IsNullOrEmpty(email.To))
                             {
-                                // Set basic properties
-                                if (email.Date.HasValue)
+                                foreach (string to in email.To.Split(new[] { ';' }, StringSplitOptions.RemoveEmptyEntries))
                                 {
-                                    msg.SentOn = email.Date.Value;
+                                    (string name, string address) = ParseEmailAddress(to);
+                                    msg.Recipients.AddTo(address, name);
                                 }
+                            }
 
-                                // Add recipients (To, CC, BCC)
-                                AddRecipients(msg, email);
-
-                                // Set message body
-                                SetMessageBody(msg, email);
-
-                                // Add attachments
-                                if (email.Attachments != null)
+                            if (!string.IsNullOrEmpty(email.Cc))
+                            {
+                                foreach (string cc in email.Cc.Split(new[] { ';' }, StringSplitOptions.RemoveEmptyEntries))
                                 {
-                                    foreach (XstAttachment attachment in email.Attachments)
+                                    (string name, string address) = ParseEmailAddress(cc);
+                                    msg.Recipients.AddCc(address, name);
+                                }
+                            }
+
+                            // Handle body content
+                            string bodyText = email.Body?.Text ?? string.Empty;
+                            bool isHtml = bodyText.IndexOf("<html", StringComparison.OrdinalIgnoreCase) >= 0 || 
+                                        bodyText.IndexOf("<!DOCTYPE", StringComparison.OrdinalIgnoreCase) >= 0;
+
+                            if (isHtml)
+                            {
+                                // Preserve original HTML formatting
+                                msg.BodyHtml = bodyText;
+                                
+                                // Create plain text version
+                                var doc = new HtmlDocument();
+                                doc.LoadHtml(bodyText);
+                                msg.BodyText = doc.DocumentNode.InnerText;
+                            }
+                            else
+                            {
+                                // For plain text, create both versions
+                                msg.BodyText = bodyText;
+                                msg.BodyHtml = $@"<!DOCTYPE HTML PUBLIC ""-//W3C//DTD HTML 4.0 Transitional//EN"">
+<HTML>
+<HEAD>
+<META http-equiv=Content-Type content=""text/html; charset=utf-8"">
+<META name=Generator content=""Microsoft Exchange Server"">
+<STYLE>
+<!-- 
+    font-family: Calibri, Arial, Helvetica, sans-serif;
+    font-size: 11pt;
+    color: #000000;
+-->
+</STYLE>
+</HEAD>
+<BODY>
+<DIV dir=ltr>
+{bodyText.Replace(Environment.NewLine, "<BR>")}
+</DIV>
+</BODY>
+</HTML>";
+                            }
+
+                            // Handle attachments
+                            if (email.Attachments != null)
+                            {
+                                foreach (XstAttachment attachment in email.Attachments)
+                                {
+                                    string tempFile = Path.Combine(Path.GetTempPath(), attachment.FileNameForSaving);
+                                    try
                                     {
-                                        string tempFile = null;
-                                        try
-                                        {
-                                            // Create temp file with original filename
-                                            string tempPath = Path.GetTempPath();
-                                            string originalFileName = attachment.FileNameForSaving;
-                                            tempFile = Path.Combine(tempPath, originalFileName);
-
-                                            // Save attachment to temp file
-                                            attachment.SaveToFile(tempFile);
-
-                                            // Add the attachment using the original filename
-                                            msg.Attachments.Add(
-                                                tempFile,           // Full path to temp file
-                                                -1,                 // Default rendering position
-                                                false,              // Not inline
-                                                string.Empty        // No content ID
-                                            );
-                                        }
-                                        finally
-                                        {
-                                            // Clean up temp file
-                                            if (tempFile != null && File.Exists(tempFile))
-                                            {
-                                                try
-                                                {
-                                                    File.Delete(tempFile);
-                                                }
-                                                catch
-                                                {
-                                                    // Log or handle deletion failure if needed
-                                                }
-                                            }
-                                        }
+                                        attachment.SaveToFile(tempFile);
+                                        msg.Attachments.Add(tempFile);
+                                        File.Delete(tempFile);
+                                    }
+                                    catch (Exception)
+                                    {
+                                        // Log attachment failure if needed
                                     }
                                 }
-
-                                // Save the MSG file
-                                msg.Save(filePath);
                             }
-                        });
 
-                        success++;
+                            msg.Save(filePath);
+                            success++;
+                        }
                     }
                     catch (Exception ex)
                     {
                         failures.Add($"{email.Subject}: {ex.Message}");
                     }
 
-                    // Update progress
                     ProgressValue = (int)((double)(i + 1) / total * 100);
                     ProgressText = $"Exporting emails... {ProgressValue}%";
-                    await Task.Delay(1); // Allow UI update
+                    await Task.Delay(1);
                 }
 
-                // Show results
                 ShowExportResults(success, failures);
             }
             finally
@@ -512,93 +529,6 @@ namespace PSTInsight
                 SetWindowEnabled(true);
                 ProgressVisibility = Visibility.Collapsed;
             }
-        }
-
-        private void AddRecipients(Email msg, XstMessage email)
-        {
-            // Add To recipients
-            if (!string.IsNullOrEmpty(email.To))
-            {
-                foreach (string to in email.To.Split(new[] { ';' }, StringSplitOptions.RemoveEmptyEntries))
-                {
-                    (string name, string address) = ParseEmailAddress(to);
-                    msg.Recipients.AddTo(name, address);
-                }
-            }
-
-            // Add CC recipients
-            if (!string.IsNullOrEmpty(email.Cc))
-            {
-                foreach (string cc in email.Cc.Split(new[] { ';' }, StringSplitOptions.RemoveEmptyEntries))
-                {
-                    (string name, string address) = ParseEmailAddress(cc);
-                    msg.Recipients.AddCc(name, address);
-                }
-            }
-
-            // Add BCC recipients
-            if (!string.IsNullOrEmpty(email.Bcc))
-            {
-                foreach (string bcc in email.Bcc.Split(new[] { ';' }, StringSplitOptions.RemoveEmptyEntries))
-                {
-                    (string name, string address) = ParseEmailAddress(bcc);
-                    msg.Recipients.AddBcc(name, address);
-                }
-            }
-        }
-
-        private void SetMessageBody(Email msg, XstMessage email)
-        {
-            if (email.Body == null)
-            {
-                return;
-            }
-
-            string bodyText = email.Body.Text ?? string.Empty;
-            string plainText = bodyText;
-            string htmlText = bodyText;
-
-            // If content is HTML
-            if (bodyText.Contains("<html") || bodyText.Contains("<HTML"))
-            {
-                // Strip HTML for plain text
-                plainText = System.Text.RegularExpressions.Regex.Replace(
-                    bodyText,
-                    "<[^>]*>",
-                    string.Empty
-                ).Trim();
-
-                // Ensure HTML has proper structure
-                if (!bodyText.Contains("<body"))
-                {
-                    htmlText = $@"<!DOCTYPE HTML PUBLIC ""-//W3C//DTD HTML 3.2//EN"">
-<html>
-<head>
-<meta http-equiv=""Content-Type"" content=""text/html; charset=UTF-8"">
-</head>
-<body style='font-family: Calibri, Arial, sans-serif; font-size: 11pt;'>
-{bodyText}
-</body>
-</html>";
-                }
-            }
-            else
-            {
-                // Convert plain text to HTML
-                htmlText = $@"<!DOCTYPE HTML PUBLIC ""-//W3C//DTD HTML 3.2//EN"">
-<html>
-<head>
-<meta http-equiv=""Content-Type"" content=""text/html; charset=UTF-8"">
-</head>
-<body style='font-family: Calibri, Arial, sans-serif; font-size: 11pt;'>
-{plainText.Replace(Environment.NewLine, "<br/>").Replace(" ", "&nbsp;")}
-</body>
-</html>";
-            }
-
-            // Set body in all formats
-            msg.BodyText = plainText;
-            msg.BodyHtml = htmlText;
         }
 
         private void ShowExportResults(int success, List<string> failures)
@@ -1223,6 +1153,38 @@ namespace PSTInsight
         }
 
         public event PropertyChangedEventHandler PropertyChanged;
+
+        private string StripHtml(string html)
+        {
+            if (string.IsNullOrEmpty(html)) return string.Empty;
+            
+            // Remove HTML tags
+            var doc = new HtmlDocument();
+            doc.LoadHtml(html);
+            return doc.DocumentNode.InnerText;
+        }
+
+        private string ConvertToRtf(string input)
+        {
+            if (string.IsNullOrEmpty(input)) return string.Empty;
+
+            var sb = new StringBuilder();
+            sb.Append(@"{\rtf1\ansi\ansicpg1252\deff0\nouicompat\deflang1033");
+            sb.Append(@"{\fonttbl{\f0\fnil\fcharset0 Calibri;}}");
+            sb.Append(@"{\*\generator Riched20 10.0.19041}\viewkind4\uc1");
+            sb.Append(@"\pard\sa200\sl276\slmult1\f0\fs22 ");
+            
+            // Escape RTF special characters
+            input = input.Replace("\\", "\\\\")
+                         .Replace("{", "\\{")
+                         .Replace("}", "\\}")
+                         .Replace("\r\n", "\\par ")
+                         .Replace("\n", "\\par ");
+            
+            sb.Append(input);
+            sb.Append("}");
+            return sb.ToString();
+        }
 
         #endregion
     }
