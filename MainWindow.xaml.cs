@@ -371,21 +371,21 @@ namespace PSTInsight
                     if (!htmlContent.ToLower().Contains("<html"))
                     {
                         htmlContent = $@"<!DOCTYPE html>
-<html>
-<head>
-    <meta charset='utf-8'>
-    <style>
-        body {{ 
-            font-family: Calibri, Arial, sans-serif; 
-            font-size: 12pt; 
-            margin: 20px;
-        }}
-    </style>
-</head>
-<body>
-    {htmlContent}
-</body>
-</html>";
+                                                <html>
+                                                <head>
+                                                    <meta charset='utf-8'>
+                                                    <style>
+                                                        body {{ 
+                                                            font-family: Calibri, Arial, sans-serif; 
+                                                            font-size: 12pt; 
+                                                            margin: 20px;
+                                                        }}
+                                                    </style>
+                                                </head>
+                                                <body>
+                                                    {htmlContent}
+                                                </body>
+                                                </html>";
                     }
 
                     webView.NavigateToString(htmlContent);
@@ -473,7 +473,7 @@ namespace PSTInsight
 
                             // Handle body content
                             string bodyText = email.Body?.Text ?? string.Empty;
-                            
+
                             if (IsHtmlContent(bodyText))
                             {
                                 // Clean up the HTML content
@@ -489,21 +489,21 @@ namespace PSTInsight
 
                                 // Set both HTML and plain text versions
                                 msg.BodyHtml = $@"<!DOCTYPE html>
-<html>
-<head>
-    <meta charset='utf-8'>
-    <style>
-        body {{ 
-            font-family: Calibri, Arial, sans-serif; 
-            font-size: 11pt; 
-            line-height: 1.4;
-            margin: 10px;
-        }}
-        a {{ color: #0563C1; text-decoration: underline; }}
-    </style>
-</head>
-<body>{bodyText}</body>
-</html>";
+                                                <html>
+                                                <head>
+                                                    <meta charset='utf-8'>
+                                                    <style>
+                                                        body {{ 
+                                                            font-family: Calibri, Arial, sans-serif; 
+                                                            font-size: 11pt; 
+                                                            line-height: 1.4;
+                                                            margin: 10px;
+                                                        }}
+                                                        a {{ color: #0563C1; text-decoration: underline; }}
+                                                    </style>
+                                                </head>
+                                                <body>{bodyText}</body>
+                                                </html>";
                                 msg.BodyText = HtmlToPlainText(bodyText);
                             }
                             else
