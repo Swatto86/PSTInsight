@@ -471,59 +471,33 @@ namespace PSTInsight
                                 }
                             }
 
-                            // Handle body content with improved HTML cleaning
+                            // Handle body content
                             string bodyText = email.Body?.Text ?? string.Empty;
-
+                            
                             if (IsHtmlContent(bodyText))
                             {
+                                // Keep the HTML version for the email
+                                msg.BodyHtml = bodyText;
+                                
+                                // Create a completely clean plain text version for the preview pane
                                 var doc = new HtmlDocument();
                                 doc.LoadHtml(bodyText);
-
-                                // Remove unwanted elements but preserve links and paragraphs
-                                var nodesToRemove = doc.DocumentNode.SelectNodes("//style|//script|//meta|//head");
-                                if (nodesToRemove != null)
-                                {
-                                    foreach (var node in nodesToRemove)
-                                    {
-                                        node.Remove();
-                                    }
-                                }
-
-                                // Convert HTML entities to their actual characters
-                                bodyText = WebUtility.HtmlDecode(doc.DocumentNode.InnerHtml);
-
-                                // Clean up common HTML entities that might not be caught
-                                bodyText = bodyText
+                                
+                                // Get plain text and clean up
+                                string plainText = WebUtility.HtmlDecode(doc.DocumentNode.InnerText)
                                     .Replace("&nbsp;", " ")
-                                    .Replace("&#160;", " ")
-                                    .Replace("&#x2019;", "'")
-                                    .Replace("&#x00A9;", "©")
-                                    .Replace("&#8217;", "'")
-                                    .Replace("&#169;", "©");
+                                    .Replace("\r\n", "\n")
+                                    .Replace("\n\n\n", "\n\n");
 
-                                // Preserve paragraph spacing
-                                bodyText = System.Text.RegularExpressions.Regex.Replace(
-                                    bodyText,
-                                    @"</p>\s*<p>",
-                                    "</p>\n<p>",
-                                    System.Text.RegularExpressions.RegexOptions.IgnoreCase
-                                );
-
-                                // Clean up excessive whitespace while preserving paragraph structure
-                                bodyText = System.Text.RegularExpressions.Regex.Replace(
-                                    bodyText,
-                                    @"\s{2,}",
-                                    " "
-                                );
-
-                                // Set both HTML and plain text versions
-                                msg.BodyHtml = CleanHtml(bodyText);
-                                msg.BodyText = HtmlToPlainText(bodyText);
+                                // Remove excessive whitespace while preserving basic structure
+                                plainText = System.Text.RegularExpressions.Regex.Replace(plainText, @"\s+", " ").Trim();
+                                
+                                msg.BodyText = plainText;
                             }
                             else
                             {
-                                // For plain text, create both versions
-                                msg.BodyText = bodyText;
+                                // For plain text emails, keep it simple
+                                msg.BodyText = bodyText.Trim();
                                 msg.BodyHtml = ConvertPlainTextToHtml(bodyText);
                             }
 
