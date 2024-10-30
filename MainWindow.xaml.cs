@@ -441,6 +441,15 @@ namespace PSTInsight
 
         #region Event Handlers
 
+        private void ExportCheckBox_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is CheckBox checkbox && checkbox.DataContext is XstMessage message)
+            {
+                message.SetIsSelectedForExport(checkbox.IsChecked ?? false);
+                UpdateExportCount();
+            }
+        }
+
         private async void BtnLoadPst_Click(object sender, RoutedEventArgs e)
         {
             var openFileDialog = new OpenFileDialog
@@ -681,7 +690,7 @@ namespace PSTInsight
             UpdateExportCount();
         }
 
-        private void UpdateExportCount()
+        public void UpdateExportCount()
         {
             ExportCount = _allEmails?.Count(e => e.GetIsSelectedForExport()) ?? 0;
         }
