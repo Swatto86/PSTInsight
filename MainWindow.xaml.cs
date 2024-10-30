@@ -198,7 +198,7 @@ namespace PSTInsight
                 PopulateFolderTreeView(_currentPstFile.RootFolder);
                 btnExport.IsEnabled = true;
             }
-            catch (Exception ex)
+            catch (Exception)
             {
                 // Remove from dictionary if loading failed
                 if (_loadedPstFiles.ContainsKey(filePath))
@@ -813,16 +813,14 @@ namespace PSTInsight
 
             if (e.Key == Key.Space)
             {
-                var selectedItem = lvEmails.SelectedItem as XstMessage;
-                if (selectedItem != null)
+                if (lvEmails.SelectedItem is XstMessage selectedItem)
                 {
                     // Toggle the export state
                     bool newState = !selectedItem.GetIsSelectedForExport();
                     selectedItem.SetIsSelectedForExport(newState);
 
                     // Find and update the checkbox
-                    var container = lvEmails.ItemContainerGenerator.ContainerFromItem(selectedItem) as ListViewItem;
-                    if (container != null)
+                    if (lvEmails.ItemContainerGenerator.ContainerFromItem(selectedItem) is ListViewItem container)
                     {
                         var checkbox = FindVisualChild<CheckBox>(container);
                         if (checkbox != null)
@@ -841,17 +839,12 @@ namespace PSTInsight
         {
             if (e.Key == Key.Space)
             {
-                var selectedItem = lvEmails.SelectedItem as XstMessage;
-                if (selectedItem != null)
+                if (lvEmails.SelectedItem is XstMessage selectedItem)
                 {
-                    var container = lvEmails.ItemContainerGenerator.ContainerFromItem(selectedItem) as ListViewItem;
-                    if (container != null)
+                    if (lvEmails.ItemContainerGenerator.ContainerFromItem(selectedItem) is ListViewItem container)
                     {
                         var checkbox = FindVisualChild<CheckBox>(container);
-                        if (checkbox != null)
-                        {
-                            checkbox.Focus();
-                        }
+                        checkbox?.Focus();
                     }
                 }
             }
@@ -1008,8 +1001,7 @@ namespace PSTInsight
             var items = lvEmails.Items;
             for (int i = 0; i < items.Count; i++)
             {
-                var item = lvEmails.ItemContainerGenerator.ContainerFromIndex(i) as ListViewItem;
-                if (item != null)
+                if (lvEmails.ItemContainerGenerator.ContainerFromIndex(i) is ListViewItem item)
                 {
                     var checkbox = FindVisualChild<CheckBox>(item);
                     if (checkbox != null)
@@ -1034,8 +1026,7 @@ namespace PSTInsight
             var items = lvEmails.Items;
             for (int i = 0; i < items.Count; i++)
             {
-                var item = lvEmails.ItemContainerGenerator.ContainerFromIndex(i) as ListViewItem;
-                if (item != null)
+                if (lvEmails.ItemContainerGenerator.ContainerFromIndex(i) is ListViewItem item)
                 {
                     var checkbox = FindVisualChild<CheckBox>(item);
                     if (checkbox != null)
@@ -1220,103 +1211,12 @@ namespace PSTInsight
 
         public event PropertyChangedEventHandler PropertyChanged;
 
-        private string StripHtml(string html)
-        {
-            if (string.IsNullOrEmpty(html)) return string.Empty;
-
-            // Remove HTML tags
-            var doc = new HtmlDocument();
-            doc.LoadHtml(html);
-            return doc.DocumentNode.InnerText;
-        }
-
-        private string ConvertToRtf(string input)
-        {
-            if (string.IsNullOrEmpty(input)) return string.Empty;
-
-            var sb = new StringBuilder();
-            sb.Append(@"{\rtf1\ansi\ansicpg1252\deff0\nouicompat\deflang1033");
-            sb.Append(@"{\fonttbl{\f0\fnil\fcharset0 Calibri;}}");
-            sb.Append(@"{\*\generator Riched20 10.0.19041}\viewkind4\uc1");
-            sb.Append(@"\pard\sa200\sl276\slmult1\f0\fs22 ");
-
-            // Escape RTF special characters
-            input = input.Replace("\\", "\\\\")
-                         .Replace("{", "\\{")
-                         .Replace("}", "\\}")
-                         .Replace("\r\n", "\\par ")
-                         .Replace("\n", "\\par ");
-
-            sb.Append(input);
-            sb.Append("}");
-            return sb.ToString();
-        }
-
         private bool IsHtmlContent(string content)
         {
             return !string.IsNullOrEmpty(content) &&
                    (content.ToLower().Contains("<html") ||
                     content.ToLower().Contains("<!doctype") ||
                     content.ToLower().Contains("<body"));
-        }
-
-        private string CleanHtml(string html)
-        {
-            if (string.IsNullOrEmpty(html)) return string.Empty;
-
-            var doc = new HtmlDocument();
-            doc.LoadHtml(html);
-
-            // Convert HTML entities
-            html = WebUtility.HtmlDecode(doc.DocumentNode.InnerHtml);
-
-            // Clean up common formatting issues
-            html = html
-                .Replace("&nbsp;", " ")
-                .Replace("\r\n", "\n")
-                .Replace("\n\n\n", "\n\n");  // Remove excessive line breaks
-
-            // Ensure paragraphs have proper spacing
-            html = System.Text.RegularExpressions.Regex.Replace(
-                html,
-                @"(<p[^>]*>)\s*",
-                "$1",
-                System.Text.RegularExpressions.RegexOptions.IgnoreCase
-            );
-
-            // Add basic HTML structure with improved formatting
-            return $@"<!DOCTYPE html>
-<html>
-<head>
-    <meta charset='utf-8'>
-    <style>
-        body {{ 
-            font-family: Calibri, Arial, sans-serif; 
-            font-size: 12pt; 
-            line-height: 1.6; 
-            margin: 20px;
-            color: #333;
-        }}
-        p {{ margin: 0 0 1em 0; }}
-        pre {{ 
-            white-space: pre-wrap; 
-            font-family: inherit;
-            margin: 0;
-        }}
-        blockquote {{
-            margin: 1em 0;
-            padding-left: 1em;
-            border-left: 3px solid #ccc;
-            color: #666;
-        }}
-    </style>
-</head>
-<body>
-    <div class='email-body'>
-        {html}
-    </div>
-</body>
-</html>";
         }
 
         private string HtmlToPlainText(string html)

@@ -20,7 +20,7 @@
         </Grid.RowDefinitions>
 
         <!-- CustomTitleBar -->
-        <local:CustomTitleBar Grid.Row="0" x:Name="CustomTitleBar" Title="PSTInsight 2.1" Margin="0,-7,0,7" />
+        <local:CustomTitleBar Grid.Row="0" x:Name="CustomTitleBar" Title="PSTInsight 2.2" Margin="0,-7,0,7" />
 
         <!-- Top Controls -->
         <Grid Grid.Row="1" Margin="10">
