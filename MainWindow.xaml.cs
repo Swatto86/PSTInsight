@@ -862,12 +862,15 @@ namespace PSTInsight
                     view.SortDescriptions.Add(new SortDescription("Subject", direction));
                     break;
                 case "from":
-                    view.SortDescriptions.Add(new SortDescription("DisplayEmail", direction));
+                    view.SortDescriptions.Add(new SortDescription("From", direction));
                     break;
                 case "date":
                     view.SortDescriptions.Add(new SortDescription("ReceivedTime", direction));
                     break;
                 case "attachment":
+                    view.SortDescriptions.Add(new SortDescription("Attachments.Count", direction));
+                    break;
+                case "attachments":
                     view.SortDescriptions.Add(new SortDescription("Attachments.Count", direction));
                     break;
             }
