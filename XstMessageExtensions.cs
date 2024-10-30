@@ -15,19 +15,19 @@ namespace PSTInsight
 
         public static bool GetIsSelectedForExport(this XstMessage message)
         {
-            var state = SelectionStorage.GetOrCreateValue(message);
+            SelectionState state = SelectionStorage.GetOrCreateValue(message);
             return state.IsSelected;
         }
 
         public static void SetIsSelectedForExport(this XstMessage message, bool value)
         {
-            var state = SelectionStorage.GetOrCreateValue(message);
+            SelectionState state = SelectionStorage.GetOrCreateValue(message);
             state.IsSelected = value;
 
             // Update the export count through the main window
             if (Application.Current?.Dispatcher != null)
             {
-                Application.Current.Dispatcher.BeginInvoke(new Action(() =>
+                _ = Application.Current.Dispatcher.BeginInvoke(new Action(() =>
                 {
                     MainWindow?.UpdateExportCount();
                 }));

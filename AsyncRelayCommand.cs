@@ -1,6 +1,6 @@
-﻿using System.Windows.Input;
-using System;
+﻿using System;
 using System.Threading.Tasks;
+using System.Windows.Input;
 
 public class AsyncRelayCommand<T> : ICommand
 {
@@ -28,7 +28,9 @@ public class AsyncRelayCommand<T> : ICommand
     public async void Execute(object parameter)
     {
         if (!CanExecute(parameter))
+        {
             return;
+        }
 
         try
         {

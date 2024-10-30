@@ -1,3 +1,4 @@
+using MsgKit;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
@@ -10,11 +11,11 @@ using System.Windows.Data;
 using System.Windows.Input;
 using System.Windows.Media;
 using XstReader;
+using FolderBrowserDialog = System.Windows.Forms.FolderBrowserDialog;
 using MessageBox = System.Windows.MessageBox;
 using OpenFileDialog = Microsoft.Win32.OpenFileDialog;
-using SaveFileDialog = Microsoft.Win32.SaveFileDialog;
-using FolderBrowserDialog = System.Windows.Forms.FolderBrowserDialog;
 using Orientation = System.Windows.Controls.Orientation;
+using SaveFileDialog = Microsoft.Win32.SaveFileDialog;
 using Task = System.Threading.Tasks.Task;
 
 namespace PSTInsight
@@ -164,14 +165,14 @@ namespace PSTInsight
                 // Make file loading async to prevent UI freezing
                 await Task.Run(() =>
                 {
-                    var pstFile = new XstFile(filePath);
+                    XstFile pstFile = new XstFile(filePath);
                     _loadedPstFiles[filePath] = pstFile;
                     _currentPstFile = pstFile;
                 });
 
                 if (!cmbPstFiles.Items.Contains(filePath))
                 {
-                    cmbPstFiles.Items.Add(filePath);
+                    _ = cmbPstFiles.Items.Add(filePath);
                     await Task.Run(() => SavePstFilePaths());
                 }
 
@@ -181,7 +182,7 @@ namespace PSTInsight
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Error loading PST file: {ex.Message}", "Error",
+                _ = MessageBox.Show($"Error loading PST file: {ex.Message}", "Error",
                     MessageBoxButton.OK, MessageBoxImage.Error);
             }
             finally
@@ -194,16 +195,19 @@ namespace PSTInsight
         private void PopulateFolderTreeView(XstFolder rootFolder)
         {
             tvFolders.Items.Clear();
-            var rootItem = CreateTreeViewItem(rootFolder);
+            TreeViewItem rootItem = CreateTreeViewItem(rootFolder);
             if (rootItem != null)
             {
-                tvFolders.Items.Add(rootItem);
+                _ = tvFolders.Items.Add(rootItem);
             }
         }
 
         private TreeViewItem CreateTreeViewItem(XstFolder folder)
         {
-            if (folder == null) return null;
+            if (folder == null)
+            {
+                return null;
+            }
 
             // Skip specific system folders
             if (folder.DisplayName == "IPM_COMMON_VIEWS" || folder.DisplayName == "Search Root")
@@ -211,36 +215,36 @@ namespace PSTInsight
                 return null;
             }
 
-            var headerPanel = new StackPanel { Orientation = Orientation.Horizontal };
+            StackPanel headerPanel = new StackPanel { Orientation = Orientation.Horizontal };
 
-            var folderName = new TextBlock
+            TextBlock folderName = new TextBlock
             {
                 Text = folder.DisplayName ?? "Unnamed Folder",
                 Margin = new Thickness(0, 0, 5, 0)
             };
-            headerPanel.Children.Add(folderName);
+            _ = headerPanel.Children.Add(folderName);
 
-            var messageCount = folder.GetMessages()?.Count() ?? 0;
-            var countText = new TextBlock
+            int messageCount = folder.GetMessages()?.Count() ?? 0;
+            TextBlock countText = new TextBlock
             {
                 Text = $"({messageCount})",
                 Foreground = FindResource("SecondaryTextBrush") as Brush
             };
-            headerPanel.Children.Add(countText);
+            _ = headerPanel.Children.Add(countText);
 
-            var item = new TreeViewItem
+            TreeViewItem item = new TreeViewItem
             {
                 Header = headerPanel,
                 Tag = folder,
                 IsExpanded = true
             };
 
-            foreach (var subFolder in folder.Folders)
+            foreach (XstFolder subFolder in folder.Folders)
             {
-                var subItem = CreateTreeViewItem(subFolder);
+                TreeViewItem subItem = CreateTreeViewItem(subFolder);
                 if (subItem != null)
                 {
-                    item.Items.Add(subItem);
+                    _ = item.Items.Add(subItem);
                 }
             }
 
@@ -256,14 +260,14 @@ namespace PSTInsight
                 ProgressValue = 0;
                 ProgressText = "Loading emails...";
 
-                var messages = await Task.Run(() => folder.GetMessages());
+                IEnumerable<XstMessage> messages = await Task.Run(() => folder.GetMessages());
                 _allEmails = new List<XstMessage>();
                 _emails.Clear();
 
-                var total = messages.Count();
-                var current = 0;
+                int total = messages.Count();
+                int current = 0;
 
-                foreach (var message in messages)
+                foreach (XstMessage message in messages)
                 {
                     _allEmails.Add(message);
                     _emails.Add(message);
@@ -279,7 +283,7 @@ namespace PSTInsight
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Error loading emails: {ex.Message}", "Error",
+                _ = MessageBox.Show($"Error loading emails: {ex.Message}", "Error",
                     MessageBoxButton.OK, MessageBoxImage.Error);
             }
             finally
@@ -291,9 +295,12 @@ namespace PSTInsight
 
         private async Task SaveAttachment(XstAttachment attachment)
         {
-            if (attachment == null) return;
+            if (attachment == null)
+            {
+                return;
+            }
 
-            var saveFileDialog = new SaveFileDialog
+            SaveFileDialog saveFileDialog = new SaveFileDialog
             {
                 FileName = attachment.FileNameForSaving,
                 Filter = $"{Path.GetExtension(attachment.FileNameForSaving)} files (*{Path.GetExtension(attachment.FileNameForSaving)})|*{Path.GetExtension(attachment.FileNameForSaving)}|All files (*.*)|*.*"
@@ -308,7 +315,7 @@ namespace PSTInsight
                 }
                 catch (Exception ex)
                 {
-                    MessageBox.Show($"Error saving attachment: {ex.Message}", "Error",
+                    _ = MessageBox.Show($"Error saving attachment: {ex.Message}", "Error",
                         MessageBoxButton.OK, MessageBoxImage.Error);
                 }
             }
@@ -342,7 +349,7 @@ namespace PSTInsight
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Error displaying email content: {ex.Message}", "Error",
+                _ = MessageBox.Show($"Error displaying email content: {ex.Message}", "Error",
                     MessageBoxButton.OK, MessageBoxImage.Error);
                 WebViewVisibility = Visibility.Collapsed;
             }
@@ -359,39 +366,103 @@ namespace PSTInsight
 
         private async Task ExportSelectedEmailsAsync(string outputPath)
         {
-            var selectedEmails = _allEmails.Where(e => e.GetIsSelectedForExport()).ToList();
+            // Get selected emails
+            List<XstMessage> selectedEmails = _allEmails.Where(e => e.GetIsSelectedForExport()).ToList();
             if (selectedEmails.Count == 0)
             {
-                MessageBox.Show("Please select at least one email to export.", "No Emails Selected",
+                _ = MessageBox.Show("Please select at least one email to export.", "No Emails Selected",
                     MessageBoxButton.OK, MessageBoxImage.Warning);
                 return;
             }
 
             try
             {
+                // Setup progress tracking
                 SetWindowEnabled(false);
                 ProgressVisibility = Visibility.Visible;
                 ProgressValue = 0;
                 ProgressText = "Exporting emails...";
 
-                var total = selectedEmails.Count;
-                var success = 0;
-                var failures = new List<string>();
+                int total = selectedEmails.Count;
+                int success = 0;
+                List<string> failures = new List<string>();
 
+                // Process each email
                 for (int i = 0; i < total; i++)
                 {
-                    var email = selectedEmails[i];
+                    XstMessage email = selectedEmails[i];
                     try
                     {
-                        string fileName = GetSafeFileName($"{email.Subject}_{email.Date:yyyyMMdd}.msg");
-                        string filePath = Path.Combine(outputPath, fileName);
+                        // Generate unique filename
+                        string baseFileName = GetSafeFileName(email.Subject);
+                        string filePath = GetUniqueFilePath(outputPath, baseFileName, ".msg");
 
-                        // Make the file export operation async
+                        // Export email asynchronously
                         await Task.Run(() =>
                         {
-                            // TODO: Implement export using XstReader's native functionality
-                            // This needs to be implemented based on XstReader's capabilities
-                            // for exporting to MSG format
+                            // Parse sender information
+                            (string fromName, string fromAddress) = ParseEmailAddress(email.From ?? string.Empty);
+
+                            // Create MSG file
+                            using (Email msg = new Email(new Sender(fromName, fromAddress), email.Subject ?? string.Empty))
+                            {
+                                // Set basic properties
+                                if (email.Date.HasValue)
+                                {
+                                    msg.SentOn = email.Date.Value;
+                                }
+
+                                // Add recipients (To, CC, BCC)
+                                AddRecipients(msg, email);
+
+                                // Set message body
+                                SetMessageBody(msg, email);
+
+                                // Add attachments
+                                if (email.Attachments != null)
+                                {
+                                    foreach (XstAttachment attachment in email.Attachments)
+                                    {
+                                        string tempFile = null;
+                                        try
+                                        {
+                                            // Create temp file with original filename
+                                            string tempPath = Path.GetTempPath();
+                                            string originalFileName = attachment.FileNameForSaving;
+                                            tempFile = Path.Combine(tempPath, originalFileName);
+
+                                            // Save attachment to temp file
+                                            attachment.SaveToFile(tempFile);
+
+                                            // Add the attachment using the original filename
+                                            msg.Attachments.Add(
+                                                tempFile,           // Full path to temp file
+                                                -1,                 // Default rendering position
+                                                false,              // Not inline
+                                                string.Empty        // No content ID
+                                            );
+                                        }
+                                        finally
+                                        {
+                                            // Clean up temp file
+                                            if (tempFile != null && File.Exists(tempFile))
+                                            {
+                                                try
+                                                {
+                                                    File.Delete(tempFile);
+                                                }
+                                                catch
+                                                {
+                                                    // Log or handle deletion failure if needed
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+
+                                // Save the MSG file
+                                msg.Save(filePath);
+                            }
                         });
 
                         success++;
@@ -401,39 +472,131 @@ namespace PSTInsight
                         failures.Add($"{email.Subject}: {ex.Message}");
                     }
 
+                    // Update progress
                     ProgressValue = (int)((double)(i + 1) / total * 100);
                     ProgressText = $"Exporting emails... {ProgressValue}%";
-
-                    // Allow UI to update
-                    await Task.Delay(1);
+                    await Task.Delay(1); // Allow UI update
                 }
 
-                var message = $"Export completed:\n" +
-                             $"Successfully exported: {success}\n" +
-                             $"Failed to export: {failures.Count}";
-
-                if (failures.Count > 0)
-                {
-                    message += "\n\nWould you like to see details of the failed exports?";
-                    var response = MessageBox.Show(message, "Export Complete",
-                        MessageBoxButton.YesNo, MessageBoxImage.Information);
-
-                    if (response == MessageBoxResult.Yes)
-                    {
-                        MessageBox.Show(string.Join("\n", failures),
-                            "Failed Exports", MessageBoxButton.OK, MessageBoxImage.Information);
-                    }
-                }
-                else
-                {
-                    MessageBox.Show(message, "Export Complete",
-                        MessageBoxButton.OK, MessageBoxImage.Information);
-                }
+                // Show results
+                ShowExportResults(success, failures);
             }
             finally
             {
                 SetWindowEnabled(true);
                 ProgressVisibility = Visibility.Collapsed;
+            }
+        }
+
+        private void AddRecipients(Email msg, XstMessage email)
+        {
+            // Add To recipients
+            if (!string.IsNullOrEmpty(email.To))
+            {
+                foreach (string to in email.To.Split(new[] { ';' }, StringSplitOptions.RemoveEmptyEntries))
+                {
+                    (string name, string address) = ParseEmailAddress(to);
+                    msg.Recipients.AddTo(name, address);
+                }
+            }
+
+            // Add CC recipients
+            if (!string.IsNullOrEmpty(email.Cc))
+            {
+                foreach (string cc in email.Cc.Split(new[] { ';' }, StringSplitOptions.RemoveEmptyEntries))
+                {
+                    (string name, string address) = ParseEmailAddress(cc);
+                    msg.Recipients.AddCc(name, address);
+                }
+            }
+
+            // Add BCC recipients
+            if (!string.IsNullOrEmpty(email.Bcc))
+            {
+                foreach (string bcc in email.Bcc.Split(new[] { ';' }, StringSplitOptions.RemoveEmptyEntries))
+                {
+                    (string name, string address) = ParseEmailAddress(bcc);
+                    msg.Recipients.AddBcc(name, address);
+                }
+            }
+        }
+
+        private void SetMessageBody(Email msg, XstMessage email)
+        {
+            if (email.Body == null)
+            {
+                return;
+            }
+
+            string bodyText = email.Body.Text ?? string.Empty;
+            string plainText = bodyText;
+            string htmlText = bodyText;
+
+            // If content is HTML
+            if (bodyText.Contains("<html") || bodyText.Contains("<HTML"))
+            {
+                // Strip HTML for plain text
+                plainText = System.Text.RegularExpressions.Regex.Replace(
+                    bodyText,
+                    "<[^>]*>",
+                    string.Empty
+                ).Trim();
+
+                // Ensure HTML has proper structure
+                if (!bodyText.Contains("<body"))
+                {
+                    htmlText = $@"<!DOCTYPE HTML PUBLIC ""-//W3C//DTD HTML 3.2//EN"">
+<html>
+<head>
+<meta http-equiv=""Content-Type"" content=""text/html; charset=UTF-8"">
+</head>
+<body style='font-family: Calibri, Arial, sans-serif; font-size: 11pt;'>
+{bodyText}
+</body>
+</html>";
+                }
+            }
+            else
+            {
+                // Convert plain text to HTML
+                htmlText = $@"<!DOCTYPE HTML PUBLIC ""-//W3C//DTD HTML 3.2//EN"">
+<html>
+<head>
+<meta http-equiv=""Content-Type"" content=""text/html; charset=UTF-8"">
+</head>
+<body style='font-family: Calibri, Arial, sans-serif; font-size: 11pt;'>
+{plainText.Replace(Environment.NewLine, "<br/>").Replace(" ", "&nbsp;")}
+</body>
+</html>";
+            }
+
+            // Set body in all formats
+            msg.BodyText = plainText;
+            msg.BodyHtml = htmlText;
+        }
+
+        private void ShowExportResults(int success, List<string> failures)
+        {
+            string message = $"Export completed:\n" +
+                         $"Successfully exported: {success}\n" +
+                         $"Failed to export: {failures.Count}";
+
+            if (failures.Count > 0)
+            {
+                message += "\n\nWould you like to see details of the failed exports?";
+                MessageBoxResult response = MessageBox.Show(message, "Export Complete",
+                    MessageBoxButton.YesNo, MessageBoxImage.Information);
+
+                if (response == MessageBoxResult.Yes)
+                {
+                    _ = MessageBox.Show(string.Join("\n", failures),
+                        "Failed Exports", MessageBoxButton.OK, MessageBoxImage.Information);
+                }
+            }
+            else
+            {
+                _ = MessageBox.Show(message, "Export Complete",
+                    MessageBoxButton.OK, MessageBoxImage.Information);
             }
         }
 
@@ -452,7 +615,7 @@ namespace PSTInsight
 
         private async void BtnLoadPst_Click(object sender, RoutedEventArgs e)
         {
-            var openFileDialog = new OpenFileDialog
+            OpenFileDialog openFileDialog = new OpenFileDialog
             {
                 Filter = "PST Files (*.pst)|*.pst",
                 Title = "Select a PST file"
@@ -468,8 +631,8 @@ namespace PSTInsight
         {
             if (e.Data.GetDataPresent(DataFormats.FileDrop))
             {
-                var files = (string[])e.Data.GetData(DataFormats.FileDrop);
-                foreach (var file in files)
+                string[] files = (string[])e.Data.GetData(DataFormats.FileDrop);
+                foreach (string file in files)
                 {
                     if (Path.GetExtension(file).Equals(".pst", StringComparison.OrdinalIgnoreCase))
                     {
@@ -511,20 +674,12 @@ namespace PSTInsight
             if (e.OriginalSource is GridViewColumnHeader headerClicked &&
                 headerClicked.Role != GridViewColumnHeaderRole.Padding)
             {
-                ListSortDirection direction;
-
-                if (headerClicked != _lastHeaderClicked)
-                {
-                    direction = ListSortDirection.Ascending;
-                }
-                else
-                {
-                    direction = _lastDirection == ListSortDirection.Ascending ?
+                ListSortDirection direction = headerClicked != _lastHeaderClicked
+                    ? ListSortDirection.Ascending
+                    : _lastDirection == ListSortDirection.Ascending ?
                         ListSortDirection.Descending : ListSortDirection.Ascending;
-                }
-
-                var columnBinding = headerClicked.Column.DisplayMemberBinding as Binding;
-                var sortBy = columnBinding?.Path.Path ?? headerClicked.Column.Header as string;
+                Binding columnBinding = headerClicked.Column.DisplayMemberBinding as Binding;
+                string sortBy = columnBinding?.Path.Path ?? headerClicked.Column.Header as string;
 
                 Sort(sortBy, direction);
 
@@ -545,7 +700,7 @@ namespace PSTInsight
 
         private async void BtnExport_Click(object sender, RoutedEventArgs e)
         {
-            var folderBrowserDialog = new FolderBrowserDialog();
+            FolderBrowserDialog folderBrowserDialog = new FolderBrowserDialog();
             if (folderBrowserDialog.ShowDialog() == System.Windows.Forms.DialogResult.OK)
             {
                 await ExportSelectedEmailsAsync(folderBrowserDialog.SelectedPath);
@@ -558,7 +713,7 @@ namespace PSTInsight
             {
                 if (_loadedPstFiles.ContainsKey(selectedPstFile))
                 {
-                    _loadedPstFiles.Remove(selectedPstFile);
+                    _ = _loadedPstFiles.Remove(selectedPstFile);
                 }
 
                 cmbPstFiles.Items.Remove(selectedPstFile);
@@ -587,7 +742,7 @@ namespace PSTInsight
             }
             else
             {
-                MessageBox.Show("Please select a folder to refresh.", "Refresh",
+                _ = MessageBox.Show("Please select a folder to refresh.", "Refresh",
                     MessageBoxButton.OK, MessageBoxImage.Information);
             }
         }
@@ -627,6 +782,49 @@ namespace PSTInsight
 
         #region Helper Methods
 
+
+        /// <summary>
+        /// Helper method to parse an email address string into name and address components
+        /// </summary>
+        private (string name, string address) ParseEmailAddress(string emailString)
+        {
+            if (string.IsNullOrEmpty(emailString))
+            {
+                return (string.Empty, string.Empty);
+            }
+
+            // Check if the email contains a display name
+            System.Text.RegularExpressions.Match match = System.Text.RegularExpressions.Regex.Match(emailString, @"(.*?)\s*<(.+?)>");
+            if (match.Success)
+            {
+                return (match.Groups[1].Value.Trim(), match.Groups[2].Value.Trim());
+            }
+
+            // If no display name, return empty name and the email address
+            return (string.Empty, emailString.Trim());
+        }
+
+        private string GetUniqueFilePath(string folderPath, string baseFileName, string extension)
+        {
+            string filePath = Path.Combine(folderPath, baseFileName + extension);
+
+            if (!File.Exists(filePath))
+            {
+                return filePath;
+            }
+
+            int counter = 1;
+            string newFilePath;
+
+            do
+            {
+                newFilePath = Path.Combine(folderPath, $"{baseFileName}_{counter++}{extension}");
+            } while (File.Exists(newFilePath));
+
+            return newFilePath;
+        }
+
+
         private void ApplyFilter()
         {
             if (_emails == null || string.IsNullOrEmpty(txtSearch.Text))
@@ -634,23 +832,20 @@ namespace PSTInsight
                 return;
             }
 
-            var view = CollectionViewSource.GetDefaultView(_emails);
-            var searchText = txtSearch.Text.ToLower();
+            ICollectionView view = CollectionViewSource.GetDefaultView(_emails);
+            string searchText = txtSearch.Text.ToLower();
 
             view.Filter = obj =>
             {
-                if (obj is XstMessage email)
-                {
-                    return email.Subject?.ToLower().Contains(searchText) == true ||
-                           email.From?.ToLower().Contains(searchText) == true;
-                }
-                return false;
+                return obj is XstMessage email
+&& (email.Subject?.ToLower().Contains(searchText) == true ||
+                           email.From?.ToLower().Contains(searchText) == true);
             };
         }
 
         private void Sort(string sortBy, ListSortDirection direction)
         {
-            var view = CollectionViewSource.GetDefaultView(lvEmails.ItemsSource);
+            ICollectionView view = CollectionViewSource.GetDefaultView(lvEmails.ItemsSource);
             view.SortDescriptions.Clear();
 
             switch (sortBy?.ToLower())
@@ -674,20 +869,74 @@ namespace PSTInsight
 
         private void SelectAllItems()
         {
-            foreach (var email in _allEmails)
+            // First update the data
+            foreach (XstMessage email in _emails)
             {
                 email.SetIsSelectedForExport(true);
             }
+
+            // Then find and update all checkboxes
+            var items = lvEmails.Items;
+            for (int i = 0; i < items.Count; i++)
+            {
+                var item = lvEmails.ItemContainerGenerator.ContainerFromIndex(i) as ListViewItem;
+                if (item != null)
+                {
+                    var checkbox = FindVisualChild<CheckBox>(item);
+                    if (checkbox != null)
+                    {
+                        checkbox.IsChecked = true;
+                    }
+                }
+            }
+            
             UpdateExportCount();
         }
 
         private void DeselectAllItems()
         {
-            foreach (var email in _allEmails)
+            // First update the data
+            foreach (XstMessage email in _emails)
             {
                 email.SetIsSelectedForExport(false);
             }
+
+            // Then find and update all checkboxes
+            var items = lvEmails.Items;
+            for (int i = 0; i < items.Count; i++)
+            {
+                var item = lvEmails.ItemContainerGenerator.ContainerFromIndex(i) as ListViewItem;
+                if (item != null)
+                {
+                    var checkbox = FindVisualChild<CheckBox>(item);
+                    if (checkbox != null)
+                    {
+                        checkbox.IsChecked = false;
+                    }
+                }
+            }
+            
             UpdateExportCount();
+        }
+
+        private static T FindVisualChild<T>(DependencyObject parent) where T : DependencyObject
+        {
+            for (int i = 0; i < VisualTreeHelper.GetChildrenCount(parent); i++)
+            {
+                DependencyObject child = VisualTreeHelper.GetChild(parent, i);
+                
+                if (child is T found)
+                {
+                    return found;
+                }
+                
+                T childOfChild = FindVisualChild<T>(child);
+                if (childOfChild != null)
+                {
+                    return childOfChild;
+                }
+            }
+            return null;
         }
 
         public void UpdateExportCount()
@@ -697,7 +946,7 @@ namespace PSTInsight
 
         private void SavePstFilePaths()
         {
-            var paths = cmbPstFiles.Items.Cast<string>().ToList();
+            List<string> paths = cmbPstFiles.Items.Cast<string>().ToList();
             File.WriteAllLines("pstfiles.txt", paths);
         }
 
@@ -705,8 +954,8 @@ namespace PSTInsight
         {
             if (File.Exists("pstfiles.txt"))
             {
-                var paths = File.ReadAllLines("pstfiles.txt");
-                foreach (var path in paths.Where(File.Exists))
+                string[] paths = File.ReadAllLines("pstfiles.txt");
+                foreach (string path in paths.Where(File.Exists))
                 {
                     _ = LoadPstFileAsync(path);
                 }
@@ -726,7 +975,10 @@ namespace PSTInsight
 
         private void AdjustColumnWidths()
         {
-            if (!(lvEmails.View is GridView gridView)) return;
+            if (!(lvEmails.View is GridView gridView))
+            {
+                return;
+            }
 
             double totalWidth = lvEmails.ActualWidth;
 
@@ -738,16 +990,16 @@ namespace PSTInsight
 
             const double exportColumnWidth = 53;
             const double attachmentColumnWidth = 80;
-            totalWidth -= (exportColumnWidth + attachmentColumnWidth);
+            totalWidth -= exportColumnWidth + attachmentColumnWidth;
 
-            var columnsToAdjust = gridView.Columns
+            List<GridViewColumn> columnsToAdjust = gridView.Columns
                 .Where(c => c.Header.ToString() != "Export?" && c.Header.ToString() != "Attachment")
                 .ToList();
 
             if (columnsToAdjust.Any())
             {
                 double widthPerColumn = totalWidth / columnsToAdjust.Count;
-                foreach (var column in columnsToAdjust)
+                foreach (GridViewColumn column in columnsToAdjust)
                 {
                     column.Width = widthPerColumn;
                 }
@@ -756,22 +1008,30 @@ namespace PSTInsight
 
         private static DependencyObject GetDescendantByType(Visual element, Type type)
         {
-            if (element == null) return null;
+            if (element == null)
+            {
+                return null;
+            }
 
-            if (element.GetType() == type) return element;
+            if (element.GetType() == type)
+            {
+                return element;
+            }
 
             DependencyObject foundElement = null;
             if (element is FrameworkElement)
             {
-                (element as FrameworkElement).ApplyTemplate();
+                _ = (element as FrameworkElement).ApplyTemplate();
             }
 
             for (int i = 0; i < VisualTreeHelper.GetChildrenCount(element); i++)
             {
-                var visual = VisualTreeHelper.GetChild(element, i) as Visual;
+                Visual visual = VisualTreeHelper.GetChild(element, i) as Visual;
                 foundElement = GetDescendantByType(visual, type);
                 if (foundElement != null)
+                {
                     break;
+                }
             }
             return foundElement;
         }
