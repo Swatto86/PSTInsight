@@ -936,52 +936,68 @@ namespace PSTInsight
         {
             if (_emails == null) return;
 
-            if (sortBy?.ToLower() == "export?")
+            // Create a new list for sorting
+            var sortedList = new List<XstMessage>(_emails);
+            
+            // Sort based on the column
+            switch (sortBy?.ToLower())
             {
-                // Create a new list for sorting
-                var sortedList = new List<XstMessage>(_emails);
-                
-                // Sort based on the actual selection state
-                if (direction == ListSortDirection.Ascending)
-                {
-                    sortedList.Sort((a, b) => a.GetIsSelectedForExport().CompareTo(b.GetIsSelectedForExport()));
-                }
-                else
-                {
-                    sortedList.Sort((a, b) => b.GetIsSelectedForExport().CompareTo(a.GetIsSelectedForExport()));
-                }
-
-                // Update the observable collection
-                _emails.Clear();
-                foreach (var email in sortedList)
-                {
-                    _emails.Add(email);
-                }
+                case "export?":
+                    if (direction == ListSortDirection.Ascending)
+                        sortedList.Sort((a, b) => a.GetIsSelectedForExport().CompareTo(b.GetIsSelectedForExport()));
+                    else
+                        sortedList.Sort((a, b) => b.GetIsSelectedForExport().CompareTo(a.GetIsSelectedForExport()));
+                    break;
+                    
+                case "subject":
+                    if (direction == ListSortDirection.Ascending)
+                        sortedList.Sort((a, b) => CompareStrings(a.Subject, b.Subject));
+                    else
+                        sortedList.Sort((a, b) => CompareStrings(b.Subject, a.Subject));
+                    break;
+                    
+                case "from":
+                    if (direction == ListSortDirection.Ascending)
+                        sortedList.Sort((a, b) => CompareStrings(a.From, b.From));
+                    else
+                        sortedList.Sort((a, b) => CompareStrings(b.From, a.From));
+                    break;
+                    
+                case "date":
+                    if (direction == ListSortDirection.Ascending)
+                        sortedList.Sort((a, b) => Nullable.Compare(a.Date, b.Date));
+                    else
+                        sortedList.Sort((a, b) => Nullable.Compare(b.Date, a.Date));
+                    break;
+                    
+                case "attachment":
+                case "attachments":
+                    if (direction == ListSortDirection.Ascending)
+                        sortedList.Sort((a, b) => GetAttachmentCount(a).CompareTo(GetAttachmentCount(b)));
+                    else
+                        sortedList.Sort((a, b) => GetAttachmentCount(b).CompareTo(GetAttachmentCount(a)));
+                    break;
             }
-            else
+
+            // Update the observable collection
+            _emails.Clear();
+            foreach (var email in sortedList)
             {
-                // Original sorting logic for other columns
-                ICollectionView view = CollectionViewSource.GetDefaultView(lvEmails.ItemsSource);
-                view.SortDescriptions.Clear();
-
-                switch (sortBy?.ToLower())
-                {
-                    case "subject":
-                        view.SortDescriptions.Add(new SortDescription("Subject", direction));
-                        break;
-                    case "from":
-                        view.SortDescriptions.Add(new SortDescription("From", direction));
-                        break;
-                    case "date":
-                        view.SortDescriptions.Add(new SortDescription("ReceivedTime", direction));
-                        break;
-                    case "attachment":
-                    case "attachments":
-                        view.SortDescriptions.Add(new SortDescription("Attachments.Count", direction));
-                        break;
-                }
-                view.Refresh();
+                _emails.Add(email);
             }
+        }
+
+        private int GetAttachmentCount(XstMessage message)
+        {
+            return message.Attachments == null ? 0 : message.Attachments.Count();
+        }
+
+        private static int CompareStrings(string a, string b)
+        {
+            if (a == null && b == null) return 0;
+            if (a == null) return -1;
+            if (b == null) return 1;
+            return string.Compare(a, b, StringComparison.CurrentCulture);
         }
 
         private void SelectAllItems()
