@@ -17,6 +17,7 @@ using OpenFileDialog = Microsoft.Win32.OpenFileDialog;
 using Orientation = System.Windows.Controls.Orientation;
 using SaveFileDialog = Microsoft.Win32.SaveFileDialog;
 using Task = System.Threading.Tasks.Task;
+using System.Globalization;
 
 namespace PSTInsight
 {
@@ -201,7 +202,7 @@ namespace PSTInsight
                 {
                     _ = _loadedPstFiles.Remove(filePath);
                 }
-                
+
                 // Remove from combo box if loading failed
                 if (cmbPstFiles.Items.Contains(filePath))
                 {
@@ -665,7 +666,7 @@ namespace PSTInsight
                         {
                             // Load each dropped file sequentially and wait for completion
                             await LoadPstFileAsync(file);
-                            
+
                             // Add a small delay between loads to prevent overwhelming the system
                             await Task.Delay(100);
                         }
@@ -673,7 +674,7 @@ namespace PSTInsight
                     catch (Exception ex)
                     {
                         // Log the error but continue loading other files
-                        _ = MessageBox.Show($"Error loading PST file '{file}': {ex.Message}", 
+                        _ = MessageBox.Show($"Error loading PST file '{file}': {ex.Message}",
                             "Warning", MessageBoxButton.OK, MessageBoxImage.Warning);
                     }
                 }
@@ -816,6 +817,56 @@ namespace PSTInsight
             AdjustColumnWidths();
         }
 
+        protected override void OnKeyDown(KeyEventArgs e)
+        {
+            base.OnKeyDown(e);
+
+            if (e.Key == Key.Space)
+            {
+                var selectedItem = lvEmails.SelectedItem as XstMessage;
+                if (selectedItem != null)
+                {
+                    // Toggle the export state
+                    bool newState = !selectedItem.GetIsSelectedForExport();
+                    selectedItem.SetIsSelectedForExport(newState);
+                    
+                    // Find and update the checkbox
+                    var container = lvEmails.ItemContainerGenerator.ContainerFromItem(selectedItem) as ListViewItem;
+                    if (container != null)
+                    {
+                        var checkbox = FindVisualChild<CheckBox>(container);
+                        if (checkbox != null)
+                        {
+                            checkbox.IsChecked = newState;
+                        }
+                    }
+                    
+                    UpdateExportCount();
+                    e.Handled = true;
+                }
+            }
+        }
+
+        private void ListView_PreviewKeyDown(object sender, KeyEventArgs e)
+        {
+            if (e.Key == Key.Space)
+            {
+                var selectedItem = lvEmails.SelectedItem as XstMessage;
+                if (selectedItem != null)
+                {
+                    var container = lvEmails.ItemContainerGenerator.ContainerFromItem(selectedItem) as ListViewItem;
+                    if (container != null)
+                    {
+                        var checkbox = FindVisualChild<CheckBox>(container);
+                        if (checkbox != null)
+                        {
+                            checkbox.Focus();
+                        }
+                    }
+                }
+            }
+        }
+
         #endregion
 
         #region Helper Methods
@@ -883,29 +934,54 @@ namespace PSTInsight
 
         private void Sort(string sortBy, ListSortDirection direction)
         {
-            ICollectionView view = CollectionViewSource.GetDefaultView(lvEmails.ItemsSource);
-            view.SortDescriptions.Clear();
+            if (_emails == null) return;
 
-            switch (sortBy?.ToLower())
+            if (sortBy?.ToLower() == "export?")
             {
-                case "subject":
-                    view.SortDescriptions.Add(new SortDescription("Subject", direction));
-                    break;
-                case "from":
-                    view.SortDescriptions.Add(new SortDescription("From", direction));
-                    break;
-                case "date":
-                    view.SortDescriptions.Add(new SortDescription("ReceivedTime", direction));
-                    break;
-                case "attachment":
-                    view.SortDescriptions.Add(new SortDescription("Attachments.Count", direction));
-                    break;
-                case "attachments":
-                    view.SortDescriptions.Add(new SortDescription("Attachments.Count", direction));
-                    break;
-            }
+                // Create a new list for sorting
+                var sortedList = new List<XstMessage>(_emails);
+                
+                // Sort based on the actual selection state
+                if (direction == ListSortDirection.Ascending)
+                {
+                    sortedList.Sort((a, b) => a.GetIsSelectedForExport().CompareTo(b.GetIsSelectedForExport()));
+                }
+                else
+                {
+                    sortedList.Sort((a, b) => b.GetIsSelectedForExport().CompareTo(a.GetIsSelectedForExport()));
+                }
 
-            view.Refresh();
+                // Update the observable collection
+                _emails.Clear();
+                foreach (var email in sortedList)
+                {
+                    _emails.Add(email);
+                }
+            }
+            else
+            {
+                // Original sorting logic for other columns
+                ICollectionView view = CollectionViewSource.GetDefaultView(lvEmails.ItemsSource);
+                view.SortDescriptions.Clear();
+
+                switch (sortBy?.ToLower())
+                {
+                    case "subject":
+                        view.SortDescriptions.Add(new SortDescription("Subject", direction));
+                        break;
+                    case "from":
+                        view.SortDescriptions.Add(new SortDescription("From", direction));
+                        break;
+                    case "date":
+                        view.SortDescriptions.Add(new SortDescription("ReceivedTime", direction));
+                        break;
+                    case "attachment":
+                    case "attachments":
+                        view.SortDescriptions.Add(new SortDescription("Attachments.Count", direction));
+                        break;
+                }
+                view.Refresh();
+            }
         }
 
         private void SelectAllItems()
@@ -930,7 +1006,7 @@ namespace PSTInsight
                     }
                 }
             }
-            
+
             UpdateExportCount();
         }
 
@@ -956,7 +1032,7 @@ namespace PSTInsight
                     }
                 }
             }
-            
+
             UpdateExportCount();
         }
 
@@ -965,12 +1041,12 @@ namespace PSTInsight
             for (int i = 0; i < VisualTreeHelper.GetChildrenCount(parent); i++)
             {
                 DependencyObject child = VisualTreeHelper.GetChild(parent, i);
-                
+
                 if (child is T found)
                 {
                     return found;
                 }
-                
+
                 T childOfChild = FindVisualChild<T>(child);
                 if (childOfChild != null)
                 {
@@ -1031,21 +1107,21 @@ namespace PSTInsight
                         {
                             // Load each PST file sequentially and wait for completion
                             await LoadPstFileAsync(path);
-                            
+
                             // Add a small delay between loads to prevent overwhelming the system
                             await Task.Delay(100);
                         }
                         catch (Exception ex)
                         {
                             // Log the error but continue loading other files
-                            _ = MessageBox.Show($"Error loading PST file '{path}': {ex.Message}", 
+                            _ = MessageBox.Show($"Error loading PST file '{path}': {ex.Message}",
                                 "Warning", MessageBoxButton.OK, MessageBoxImage.Warning);
                         }
                     }
                 }
                 catch (Exception ex)
                 {
-                    _ = MessageBox.Show($"Error loading saved PST file paths: {ex.Message}", 
+                    _ = MessageBox.Show($"Error loading saved PST file paths: {ex.Message}",
                         "Error", MessageBoxButton.OK, MessageBoxImage.Error);
                 }
             }
@@ -1133,5 +1209,22 @@ namespace PSTInsight
         public event PropertyChangedEventHandler PropertyChanged;
 
         #endregion
+    }
+
+    public class ExportStateConverter : IValueConverter
+    {
+        public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+        {
+            if (value is XstMessage message)
+            {
+                return message.GetIsSelectedForExport();
+            }
+            return false;
+        }
+
+        public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+        {
+            return value;
+        }
     }
 }

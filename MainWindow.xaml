@@ -6,6 +6,9 @@
         Width="1052" Height="600" Icon="/PSTInsight;component/Icons/email_icon.ico" AllowDrop="True" Drop="Window_Drop"
         DragOver="Window_DragOver" Style="{StaticResource CustomWindowStyle}"
         MinWidth="1052" MinHeight="600" ResizeMode="CanResizeWithGrip">
+    <Window.Resources>
+        <local:ExportStateConverter x:Key="ExportStateConverter"/>
+    </Window.Resources>
     <Grid Margin="5">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
@@ -88,15 +91,26 @@
                           SelectionMode="Extended" ScrollViewer.HorizontalScrollBarVisibility="Auto"
                           ScrollViewer.VerticalScrollBarVisibility="Auto"
                           GridViewColumnHeader.Click="GridViewColumnHeader_Click"
-                          SelectionChanged="LvEmails_SelectionChanged">
+                          SelectionChanged="LvEmails_SelectionChanged"
+                          PreviewKeyDown="ListView_PreviewKeyDown">
                     <ListView.View>
                         <GridView x:Name="EmailsGridView">
                             <GridViewColumn Header="Export?" Width="53">
                                 <GridViewColumn.CellTemplate>
                                     <DataTemplate>
                                         <CheckBox x:Name="ExportCheckBox"
-                      IsChecked="{Binding GetIsSelectedForExport, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                      Click="ExportCheckBox_Click" />
+                      IsChecked="{Binding Path=., Converter={StaticResource ExportStateConverter}}"
+                      Click="ExportCheckBox_Click">
+                                            <CheckBox.Style>
+                                                <Style TargetType="CheckBox" BasedOn="{StaticResource {x:Type CheckBox}}">
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding RelativeSource={RelativeSource AncestorType=ListViewItem}, Path=IsSelected}" Value="True">
+                                                            <Setter Property="FocusManager.FocusedElement" Value="{Binding RelativeSource={RelativeSource Self}}"/>
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </CheckBox.Style>
+                                        </CheckBox>
                                     </DataTemplate>
                                 </GridViewColumn.CellTemplate>
                             </GridViewColumn>
