@@ -476,28 +476,40 @@ namespace PSTInsight
                             
                             if (IsHtmlContent(bodyText))
                             {
-                                // Keep the HTML version for the email
-                                msg.BodyHtml = bodyText;
-                                
-                                // Create a completely clean plain text version for the preview pane
+                                // Clean up the HTML content
                                 var doc = new HtmlDocument();
                                 doc.LoadHtml(bodyText);
-                                
-                                // Get plain text and clean up
-                                string plainText = WebUtility.HtmlDecode(doc.DocumentNode.InnerText)
+
+                                // Convert HTML entities and clean up formatting
+                                bodyText = WebUtility.HtmlDecode(doc.DocumentNode.InnerHtml)
                                     .Replace("&nbsp;", " ")
+                                    .Replace("&#160;", " ")
                                     .Replace("\r\n", "\n")
                                     .Replace("\n\n\n", "\n\n");
 
-                                // Remove excessive whitespace while preserving basic structure
-                                plainText = System.Text.RegularExpressions.Regex.Replace(plainText, @"\s+", " ").Trim();
-                                
-                                msg.BodyText = plainText;
+                                // Set both HTML and plain text versions
+                                msg.BodyHtml = $@"<!DOCTYPE html>
+<html>
+<head>
+    <meta charset='utf-8'>
+    <style>
+        body {{ 
+            font-family: Calibri, Arial, sans-serif; 
+            font-size: 11pt; 
+            line-height: 1.4;
+            margin: 10px;
+        }}
+        a {{ color: #0563C1; text-decoration: underline; }}
+    </style>
+</head>
+<body>{bodyText}</body>
+</html>";
+                                msg.BodyText = HtmlToPlainText(bodyText);
                             }
                             else
                             {
-                                // For plain text emails, keep it simple
-                                msg.BodyText = bodyText.Trim();
+                                // For plain text, create a simple HTML version
+                                msg.BodyText = bodyText;
                                 msg.BodyHtml = ConvertPlainTextToHtml(bodyText);
                             }
 
@@ -506,20 +518,56 @@ namespace PSTInsight
                             {
                                 foreach (XstAttachment attachment in email.Attachments)
                                 {
-                                    string tempFile = Path.Combine(Path.GetTempPath(), attachment.FileNameForSaving);
+                                    // Skip inline/embedded images
+                                    if (attachment.IsInlineAttachment)
+                                    {
+                                        continue;
+                                    }
+
                                     try
                                     {
-                                        attachment.SaveToFile(tempFile);
-                                        msg.Attachments.Add(tempFile);
-                                        File.Delete(tempFile);
+                                        // Create a unique temp file path for each attachment
+                                        string tempPath = Path.Combine(
+                                            Path.GetTempPath(),
+                                            Path.GetRandomFileName(),
+                                            attachment.FileNameForSaving
+                                        );
+
+                                        // Ensure directory exists
+                                        Directory.CreateDirectory(Path.GetDirectoryName(tempPath));
+
+                                        // Save attachment to temp location
+                                        attachment.SaveToFile(tempPath);
+
+                                        try
+                                        {
+                                            // Add attachment to MSG
+                                            msg.Attachments.Add(tempPath);
+                                        }
+                                        finally
+                                        {
+                                            // Clean up temp file after adding to MSG
+                                            try
+                                            {
+                                                if (File.Exists(tempPath))
+                                                    File.Delete(tempPath);
+                                                if (Directory.Exists(Path.GetDirectoryName(tempPath)))
+                                                    Directory.Delete(Path.GetDirectoryName(tempPath), true);
+                                            }
+                                            catch (IOException)
+                                            {
+                                                // Log but continue if cleanup fails
+                                            }
+                                        }
                                     }
-                                    catch (Exception)
+                                    catch (Exception ex)
                                     {
-                                        // Log attachment failure if needed
+                                        failures.Add($"Attachment '{attachment.FileNameForSaving}' in email '{email.Subject}': {ex.Message}");
                                     }
                                 }
                             }
 
+                            // Save the message after all attachments are added
                             msg.Save(filePath);
                             success++;
                         }
@@ -937,7 +985,7 @@ namespace PSTInsight
 
         private int GetAttachmentCount(XstMessage message)
         {
-            return message.Attachments == null ? 0 : message.Attachments.Count();
+            return message.Attachments?.Count(a => !a.IsInlineAttachment) ?? 0;
         }
 
         private static int CompareStrings(string a, string b)
@@ -1368,6 +1416,40 @@ body {{ font-family: Calibri, Arial, Helvetica, sans-serif; font-size: 11pt; }}
         public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
         {
             return value;
+        }
+    }
+
+    public class AttachmentFilterConverter : IValueConverter
+    {
+        public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+        {
+            if (value is IEnumerable<XstAttachment> attachments)
+            {
+                return attachments?.Where(a => !a.IsInlineAttachment);
+            }
+            return null;
+        }
+
+        public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+        {
+            throw new NotImplementedException();
+        }
+    }
+
+    public class HasNonInlineAttachmentsConverter : IValueConverter
+    {
+        public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+        {
+            if (value is XstMessage message)
+            {
+                return message.Attachments?.Any(a => !a.IsInlineAttachment) ?? false;
+            }
+            return false;
+        }
+
+        public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+        {
+            throw new NotImplementedException();
         }
     }
 }
