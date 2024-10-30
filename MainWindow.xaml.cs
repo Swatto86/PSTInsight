@@ -20,6 +20,7 @@ using Task = System.Threading.Tasks.Task;
 using System.Globalization;
 using System.Text;
 using HtmlAgilityPack;
+using System.Net;
 
 namespace PSTInsight
 {
@@ -426,7 +427,7 @@ namespace PSTInsight
 
                         using (var msg = new Email(new Sender(fromName, fromAddress), email.Subject ?? string.Empty))
                         {
-                            // Set email properties
+                            // Set email properties including sent date
                             msg.SentOn = email.Date ?? DateTime.Now;
                             msg.Subject = email.Subject ?? string.Empty;
                             
@@ -449,44 +450,38 @@ namespace PSTInsight
                                 }
                             }
 
-                            // Handle body content
+                            // Handle body content with improved HTML cleaning
                             string bodyText = email.Body?.Text ?? string.Empty;
-                            bool isHtml = bodyText.IndexOf("<html", StringComparison.OrdinalIgnoreCase) >= 0 || 
-                                        bodyText.IndexOf("<!DOCTYPE", StringComparison.OrdinalIgnoreCase) >= 0;
-
-                            if (isHtml)
+                            
+                            if (IsHtmlContent(bodyText))
                             {
-                                // Preserve original HTML formatting
-                                msg.BodyHtml = bodyText;
-                                
-                                // Create plain text version
                                 var doc = new HtmlDocument();
                                 doc.LoadHtml(bodyText);
-                                msg.BodyText = doc.DocumentNode.InnerText;
+
+                                // Remove unwanted elements
+                                var nodesToRemove = doc.DocumentNode.SelectNodes("//style|//script|//meta");
+                                if (nodesToRemove != null)
+                                {
+                                    foreach (var node in nodesToRemove)
+                                    {
+                                        node.Remove();
+                                    }
+                                }
+
+                                // Replace &nbsp; with regular spaces
+                                bodyText = doc.DocumentNode.InnerHtml
+                                    .Replace("&nbsp;", " ")
+                                    .Replace("&#160;", " ");
+
+                                // Set both HTML and plain text versions
+                                msg.BodyHtml = CleanHtml(bodyText);
+                                msg.BodyText = HtmlToPlainText(bodyText);
                             }
                             else
                             {
                                 // For plain text, create both versions
                                 msg.BodyText = bodyText;
-                                msg.BodyHtml = $@"<!DOCTYPE HTML PUBLIC ""-//W3C//DTD HTML 4.0 Transitional//EN"">
-<HTML>
-<HEAD>
-<META http-equiv=Content-Type content=""text/html; charset=utf-8"">
-<META name=Generator content=""Microsoft Exchange Server"">
-<STYLE>
-<!-- 
-    font-family: Calibri, Arial, Helvetica, sans-serif;
-    font-size: 11pt;
-    color: #000000;
--->
-</STYLE>
-</HEAD>
-<BODY>
-<DIV dir=ltr>
-{bodyText.Replace(Environment.NewLine, "<BR>")}
-</DIV>
-</BODY>
-</HTML>";
+                                msg.BodyHtml = ConvertPlainTextToHtml(bodyText);
                             }
 
                             // Handle attachments
@@ -856,9 +851,15 @@ namespace PSTInsight
 
             view.Filter = obj =>
             {
-                return obj is XstMessage email
-&& (email.Subject?.ToLower().Contains(searchText) == true ||
-                           email.From?.ToLower().Contains(searchText) == true);
+                if (obj is XstMessage email)
+                {
+                    string subject = email.Subject?.ToLower() ?? string.Empty;
+                    string from = email.From?.ToLower() ?? string.Empty;
+                    
+                    return subject.Contains(searchText) || 
+                           from.Contains(searchText);
+                }
+                return false;
             };
         }
 
@@ -1184,6 +1185,95 @@ namespace PSTInsight
             sb.Append(input);
             sb.Append("}");
             return sb.ToString();
+        }
+
+        private bool IsHtmlContent(string content)
+        {
+            return !string.IsNullOrEmpty(content) && 
+                   (content.ToLower().Contains("<html") || 
+                    content.ToLower().Contains("<!doctype") ||
+                    content.ToLower().Contains("<body"));
+        }
+
+        private string CleanHtml(string html)
+        {
+            if (string.IsNullOrEmpty(html)) return string.Empty;
+
+            // Ensure proper HTML structure
+            if (!html.ToLower().Contains("<html"))
+            {
+                html = $@"<!DOCTYPE HTML PUBLIC ""-//W3C//DTD HTML 4.0 Transitional//EN"">
+<html>
+<head>
+<meta http-equiv=""Content-Type"" content=""text/html; charset=utf-8"">
+<style>
+body {{ font-family: Calibri, Arial, Helvetica, sans-serif; font-size: 11pt; }}
+</style>
+</head>
+<body>
+{html}
+</body>
+</html>";
+            }
+
+            return html;
+        }
+
+        private string HtmlToPlainText(string html)
+        {
+            if (string.IsNullOrEmpty(html)) return string.Empty;
+
+            var doc = new HtmlDocument();
+            doc.LoadHtml(html);
+
+            // Replace <br> and <p> with newlines
+            var brNodes = doc.DocumentNode.SelectNodes("//br");
+            if (brNodes != null)
+            {
+                foreach (var node in brNodes)
+                {
+                    node.ParentNode.ReplaceChild(doc.CreateTextNode("\n"), node);
+                }
+            }
+
+            var pNodes = doc.DocumentNode.SelectNodes("//p");
+            if (pNodes != null)
+            {
+                foreach (var node in pNodes)
+                {
+                    node.ParentNode.ReplaceChild(doc.CreateTextNode("\n" + node.InnerText + "\n"), node);
+                }
+            }
+
+            // Get plain text and clean up extra whitespace
+            string plainText = doc.DocumentNode.InnerText;
+            plainText = System.Text.RegularExpressions.Regex.Replace(plainText, @"\s+", " ").Trim();
+            
+            return plainText;
+        }
+
+        private string ConvertPlainTextToHtml(string plainText)
+        {
+            if (string.IsNullOrEmpty(plainText)) return string.Empty;
+
+            // Encode HTML special characters
+            string htmlEncodedText = WebUtility.HtmlEncode(plainText);
+
+            // Convert newlines to <br> tags
+            htmlEncodedText = htmlEncodedText.Replace(Environment.NewLine, "<br>");
+
+            return $@"<!DOCTYPE HTML PUBLIC ""-//W3C//DTD HTML 4.0 Transitional//EN"">
+<html>
+<head>
+<meta http-equiv=""Content-Type"" content=""text/html; charset=utf-8"">
+<style>
+body {{ font-family: Calibri, Arial, Helvetica, sans-serif; font-size: 11pt; }}
+</style>
+</head>
+<body>
+{htmlEncodedText}
+</body>
+</html>";
         }
 
         #endregion
