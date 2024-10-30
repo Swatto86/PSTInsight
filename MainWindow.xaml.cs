@@ -1,10 +1,14 @@
+using HtmlAgilityPack;
 using MsgKit;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
+using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Net;
+using System.Text;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Data;
@@ -17,10 +21,6 @@ using OpenFileDialog = Microsoft.Win32.OpenFileDialog;
 using Orientation = System.Windows.Controls.Orientation;
 using SaveFileDialog = Microsoft.Win32.SaveFileDialog;
 using Task = System.Threading.Tasks.Task;
-using System.Globalization;
-using System.Text;
-using HtmlAgilityPack;
-using System.Net;
 
 namespace PSTInsight
 {
@@ -451,7 +451,7 @@ namespace PSTInsight
                             // Set email properties including sent date
                             msg.SentOn = email.Date ?? DateTime.Now;
                             msg.Subject = email.Subject ?? string.Empty;
-                            
+
                             // Handle recipients
                             if (!string.IsNullOrEmpty(email.To))
                             {
@@ -473,7 +473,7 @@ namespace PSTInsight
 
                             // Handle body content with improved HTML cleaning
                             string bodyText = email.Body?.Text ?? string.Empty;
-                            
+
                             if (IsHtmlContent(bodyText))
                             {
                                 var doc = new HtmlDocument();
@@ -797,7 +797,7 @@ namespace PSTInsight
                     // Toggle the export state
                     bool newState = !selectedItem.GetIsSelectedForExport();
                     selectedItem.SetIsSelectedForExport(newState);
-                    
+
                     // Find and update the checkbox
                     var container = lvEmails.ItemContainerGenerator.ContainerFromItem(selectedItem) as ListViewItem;
                     if (container != null)
@@ -808,7 +808,7 @@ namespace PSTInsight
                             checkbox.IsChecked = newState;
                         }
                     }
-                    
+
                     UpdateExportCount();
                     e.Handled = true;
                 }
@@ -898,8 +898,8 @@ namespace PSTInsight
                 {
                     string subject = email.Subject?.ToLower() ?? string.Empty;
                     string from = email.From?.ToLower() ?? string.Empty;
-                    
-                    return subject.Contains(searchText) || 
+
+                    return subject.Contains(searchText) ||
                            from.Contains(searchText);
                 }
                 return false;
@@ -912,7 +912,7 @@ namespace PSTInsight
 
             // Create a new list for sorting
             var sortedList = new List<XstMessage>(_emails);
-            
+
             // Sort based on the column
             switch (sortBy?.ToLower())
             {
@@ -922,28 +922,28 @@ namespace PSTInsight
                     else
                         sortedList.Sort((a, b) => b.GetIsSelectedForExport().CompareTo(a.GetIsSelectedForExport()));
                     break;
-                    
+
                 case "subject":
                     if (direction == ListSortDirection.Ascending)
                         sortedList.Sort((a, b) => CompareStrings(a.Subject, b.Subject));
                     else
                         sortedList.Sort((a, b) => CompareStrings(b.Subject, a.Subject));
                     break;
-                    
+
                 case "from":
                     if (direction == ListSortDirection.Ascending)
                         sortedList.Sort((a, b) => CompareStrings(a.From, b.From));
                     else
                         sortedList.Sort((a, b) => CompareStrings(b.From, a.From));
                     break;
-                    
+
                 case "date":
                     if (direction == ListSortDirection.Ascending)
                         sortedList.Sort((a, b) => Nullable.Compare(a.Date, b.Date));
                     else
                         sortedList.Sort((a, b) => Nullable.Compare(b.Date, a.Date));
                     break;
-                    
+
                 case "attachment":
                 case "attachments":
                     if (direction == ListSortDirection.Ascending)
@@ -1201,7 +1201,7 @@ namespace PSTInsight
         private string StripHtml(string html)
         {
             if (string.IsNullOrEmpty(html)) return string.Empty;
-            
+
             // Remove HTML tags
             var doc = new HtmlDocument();
             doc.LoadHtml(html);
@@ -1217,14 +1217,14 @@ namespace PSTInsight
             sb.Append(@"{\fonttbl{\f0\fnil\fcharset0 Calibri;}}");
             sb.Append(@"{\*\generator Riched20 10.0.19041}\viewkind4\uc1");
             sb.Append(@"\pard\sa200\sl276\slmult1\f0\fs22 ");
-            
+
             // Escape RTF special characters
             input = input.Replace("\\", "\\\\")
                          .Replace("{", "\\{")
                          .Replace("}", "\\}")
                          .Replace("\r\n", "\\par ")
                          .Replace("\n", "\\par ");
-            
+
             sb.Append(input);
             sb.Append("}");
             return sb.ToString();
@@ -1232,8 +1232,8 @@ namespace PSTInsight
 
         private bool IsHtmlContent(string content)
         {
-            return !string.IsNullOrEmpty(content) && 
-                   (content.ToLower().Contains("<html") || 
+            return !string.IsNullOrEmpty(content) &&
+                   (content.ToLower().Contains("<html") ||
                     content.ToLower().Contains("<!doctype") ||
                     content.ToLower().Contains("<body"));
         }
@@ -1312,7 +1312,7 @@ namespace PSTInsight
                 {
                     string href = link.GetAttributeValue("href", string.Empty);
                     string text = link.InnerText.Trim();
-                    
+
                     // Only add the URL if it's different from the text
                     if (!string.IsNullOrEmpty(href) && !href.Equals(text, StringComparison.OrdinalIgnoreCase))
                     {
@@ -1345,11 +1345,11 @@ namespace PSTInsight
 
             // Get plain text and clean up whitespace
             string plainText = doc.DocumentNode.InnerText;
-            
+
             // Clean up excessive whitespace while preserving paragraph structure
             plainText = System.Text.RegularExpressions.Regex.Replace(plainText, @"\n{3,}", "\n\n");
             plainText = System.Text.RegularExpressions.Regex.Replace(plainText, @"\s+", " ");
-            
+
             return plainText.Trim();
         }
 
