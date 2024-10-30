@@ -141,7 +141,15 @@ namespace PSTInsight
 
         private async void InitializeAsync()
         {
-            await webView.EnsureCoreWebView2Async();
+            try
+            {
+                await webView.EnsureCoreWebView2Async();
+            }
+            catch (Exception ex)
+            {
+                _ = MessageBox.Show($"Error initializing WebView: {ex.Message}", "Error",
+                    MessageBoxButton.OK, MessageBoxImage.Error);
+            }
         }
 
         #endregion
@@ -946,7 +954,6 @@ namespace PSTInsight
 
         private string GetPstFilesPath()
         {
-            // Get the AppData Roaming path and create PSTInsight directory if it doesn't exist
             string appDataPath = Path.Combine(
                 Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
                 "PSTInsight"
@@ -960,7 +967,14 @@ namespace PSTInsight
             try
             {
                 List<string> paths = cmbPstFiles.Items.Cast<string>().ToList();
-                File.WriteAllLines(GetPstFilesPath(), paths);
+                // Use using statement to ensure file handle is released
+                using (StreamWriter writer = new StreamWriter(GetPstFilesPath(), false))
+                {
+                    foreach (string path in paths)
+                    {
+                        writer.WriteLine(path);
+                    }
+                }
             }
             catch (Exception ex)
             {
