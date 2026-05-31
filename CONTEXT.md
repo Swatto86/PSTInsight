@@ -3,10 +3,10 @@
 **PSTInsight (Rust rewrite)** — Tauri 2 + React 18 + TypeScript + Tailwind v4
 front end; Rust backend in `src-tauri`; pure-Rust read-only PST parser in
 `pst-parse` (vendored as a path dependency). Replaces the original C#/WPF
-PSTInsight. State: v1.0.0 released 2026-05-31 (GitHub release with MSI + NSIS
-installers); core app complete and verified to compile/test; MSG export
-implemented and round-trip-tested; pending end-to-end run against a real PST
-and an installer run-through of the published v1.0.0 build.
+PSTInsight. State: v1.0.1 released 2026-05-31 (GitHub release with MSI + NSIS
+installers; v1.0.0 was the first release, v1.0.1 fixes the startup white flash);
+core app complete and verified to compile/test; MSG export implemented and
+round-trip-tested; pending end-to-end run against a real PST.
 
 Established patterns:
 - Domain types (`pst_parse::Message`, `Folder`, …) never cross the IPC boundary;
@@ -50,6 +50,14 @@ Open decisions:
 - 2026-05-31 | PSTInsight | Fixed `ci.yml` trigger `main` → `master` | The repo
   default branch is `master` and no `main` branch exists, so CI had never run;
   the verify gate was inert until this fix.
+- 2026-05-31 | PSTInsight | Kill the startup white flash via the native window
+  `backgroundColor: "#0b0e14"` (tauri.conf.json), not `visible:false` + JS show
+  | On Windows `backgroundColor` paints the window *and* webview layers dark
+  before content renders, so there is no white surface to flash, and the window
+  always shows. The rejected `visible:false` + `requestAnimationFrame(show())`
+  approach deadlocks: WebView2 pauses rAF while the window is hidden, so `show()`
+  never fires and the window stays invisible forever. Avoid any
+  reveal-after-paint scheme that depends on rAF/timers while hidden.
 
 ## Cross-project patterns
 
