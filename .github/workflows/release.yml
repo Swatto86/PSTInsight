@@ -1,0 +1,47 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+jobs:
+  release:
+    runs-on: windows-latest
+    permissions:
+      # tauri-action creates the GitHub release and uploads the installers.
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      # Pinned to match rust-toolchain.toml exactly, same as ci.yml. `@stable`
+      # floats and would surface new lints that pass locally but fail here.
+      - name: Install Rust 1.95.0
+        uses: dtolnay/rust-toolchain@1.95.0
+        with:
+          components: clippy, rustfmt
+
+      - name: Install frontend dependencies
+        run: npm ci
+
+      # Runs the full `tauri build`: executes beforeBuildCommand (bundles the
+      # frontend via `npm run build`), produces the installers, then creates the
+      # GitHub release and uploads them. __VERSION__ is replaced with the version
+      # from tauri.conf.json, so the tag and release name stay in lockstep with
+      # the app version regardless of how the workflow is triggered.
+      - name: Build and publish release
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tagName: v__VERSION__
+          releaseName: PSTInsight v__VERSION__
+          releaseBody: See the assets below to download and install PSTInsight.
+          releaseDraft: false
+          prerelease: false
