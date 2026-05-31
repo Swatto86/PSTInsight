@@ -2643,7 +2643,7 @@ dependencies = [
 
 [[package]]
 name = "pstinsight"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "cfb 0.14.0",
  "pst-parse",
