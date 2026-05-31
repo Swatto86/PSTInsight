@@ -1,0 +1,49 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  verify:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      # Pinned to match rust-toolchain.toml exactly. `@stable` floats and would
+      # surface new lints that pass locally but fail here — keep these in lockstep.
+      - name: Install Rust 1.95.0
+        uses: dtolnay/rust-toolchain@1.95.0
+        with:
+          components: clippy, rustfmt
+
+      - name: Install frontend dependencies
+        run: npm ci
+
+      - name: Clippy (parser)
+        working-directory: pst-parse
+        run: cargo clippy --all-targets -- -D warnings
+
+      - name: Clippy (app)
+        working-directory: src-tauri
+        run: cargo clippy --all-targets -- -D warnings
+
+      - name: Test (parser)
+        working-directory: pst-parse
+        run: cargo test
+
+      - name: Test (app)
+        working-directory: src-tauri
+        run: cargo test
+
+      # Full build: runs beforeBuildCommand (bundles the frontend) and produces
+      # the installer — a `cargo build --lib` would let a broken bundle ship green.
+      - name: Tauri build
+        run: npx tauri build
