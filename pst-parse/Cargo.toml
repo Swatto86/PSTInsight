@@ -1,0 +1,20 @@
+[package]
+name = "pst-parse"
+version = "0.1.0"
+edition = "2021"
+description = "A from-scratch parser for Microsoft Outlook PST (Personal Storage Table) files"
+license = "MIT"
+repository = "https://github.com/Swatto86/pst-parse"
+keywords = ["pst", "outlook", "email", "mapi", "parser"]
+categories = ["parser-implementations", "email"]
+
+[lib]
+name = "pst_parse"
+
+[dependencies]
+thiserror = "1"
+memmap2 = "0.9"
+
+[[example]]
+name = "dump"
+path = "examples/dump.rs"
