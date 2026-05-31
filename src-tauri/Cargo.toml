@@ -1,6 +1,6 @@
 [package]
 name = "pstinsight"
-version = "1.0.0"
+version = "1.0.1"
 description = "A fast, modern viewer for Outlook PST files"
 authors = ["Swatto"]
 edition = "2021"
