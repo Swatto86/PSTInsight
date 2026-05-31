@@ -3,8 +3,10 @@
 **PSTInsight (Rust rewrite)** — Tauri 2 + React 18 + TypeScript + Tailwind v4
 front end; Rust backend in `src-tauri`; pure-Rust read-only PST parser in
 `pst-parse` (vendored as a path dependency). Replaces the original C#/WPF
-PSTInsight. State: core app complete and verified to compile/test; MSG export
-implemented and round-trip-tested; pending end-to-end run against a real PST.
+PSTInsight. State: v1.0.0 released 2026-05-31 (GitHub release with MSI + NSIS
+installers); core app complete and verified to compile/test; MSG export
+implemented and round-trip-tested; pending end-to-end run against a real PST
+and an installer run-through of the published v1.0.0 build.
 
 Established patterns:
 - Domain types (`pst_parse::Message`, `Folder`, …) never cross the IPC boundary;
@@ -39,6 +41,15 @@ Open decisions:
   per-frame CSP and default remote-blocking | Email `body_html` is
   attacker-controlled; raw rendering in a Tauri webview is XSS against the IPC
   bridge plus tracking-pixel leakage.
+- 2026-05-31 | PSTInsight | Tag-driven release pipeline
+  (`.github/workflows/release.yml`) via `tauri-apps/tauri-action`, separate from
+  the `ci.yml` verify job | A `v*` tag push builds on `windows-latest` and
+  publishes a GitHub release with the MSI + NSIS installers; `__VERSION__` in
+  `tagName`/`releaseName` resolves from `tauri.conf.json` so tag and app version
+  stay in lockstep. Replaced a stale, asset-less pre-rewrite v1.0.0 release.
+- 2026-05-31 | PSTInsight | Fixed `ci.yml` trigger `main` → `master` | The repo
+  default branch is `master` and no `main` branch exists, so CI had never run;
+  the verify gate was inert until this fix.
 
 ## Cross-project patterns
 
