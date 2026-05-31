@@ -1,0 +1,35 @@
+<svg width="1024" height="1024" viewBox="0 0 1024 1024" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="tile" x1="0" y1="0" x2="1024" y2="1024" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#6366F1"/>
+      <stop offset="1" stop-color="#4338CA"/>
+    </linearGradient>
+    <linearGradient id="sheen" x1="0" y1="0" x2="0" y2="1024" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#FFFFFF" stop-opacity="0.16"/>
+      <stop offset="0.5" stop-color="#FFFFFF" stop-opacity="0"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Rounded app tile -->
+  <rect x="0" y="0" width="1024" height="1024" rx="232" fill="url(#tile)"/>
+  <rect x="0" y="0" width="1024" height="1024" rx="232" fill="url(#sheen)"/>
+
+  <!-- Envelope -->
+  <g>
+    <rect x="196" y="276" width="476" height="312" rx="34" fill="#FFFFFF"/>
+    <!-- Flap crease -->
+    <path d="M 226 304 L 434 470 L 642 304" fill="none" stroke="#4F46E5"
+          stroke-width="30" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+
+  <!-- Magnifying glass, overlapping the envelope's lower-right corner -->
+  <g>
+    <!-- background-colored halo to separate the glass from the white envelope -->
+    <circle cx="724" cy="712" r="176" fill="url(#tile)"/>
+    <!-- lens -->
+    <circle cx="724" cy="712" r="150" fill="#FFFFFF" fill-opacity="0.18"/>
+    <circle cx="724" cy="712" r="150" fill="none" stroke="#FFFFFF" stroke-width="52"/>
+    <!-- handle -->
+    <path d="M 838 826 L 928 916" stroke="#FFFFFF" stroke-width="60" stroke-linecap="round"/>
+  </g>
+</svg>
